@@ -12,7 +12,7 @@ using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::server;
 
 
-#define MAX_NUM_WORKER_THREADS (10)
+#define MAX_NUM_WORKER_THREADS (1)
 
 class Request {
 public:
@@ -64,15 +64,20 @@ int main(int argc, char *argv[]) {
         threads.push_back(new thread(&Worker::run, w));
         threads[num]->detach();
     }
+    server.num_threads(2);
     server.handle("/work", [&reqNum, &queue](const request &req, const response &res) {
         int  cnt = reqNum++;
-        cout << "received req: " << cnt << endl;
-        queue.push(new Request(req, res));
+        cout << "received req: " << cnt << " " << this_thread::get_id() << endl;
+        sleep(1);
+        res.write_head(200);
+        res.end("Hello world");
+        res.on_close([](const uint32_t status) {
+            cout << "closed connection" << status << endl;
+            });
     });
     if (server.listen_and_serve(ec, "localhost", "7000", true)) {
         std::cerr << "error: " << ec.message() << std::endl;
     }
-    server.num_threads(2);
     server.join();
     for (int num = 0; num < MAX_NUM_WORKER_THREADS; ++num) {
         delete workers[num];
