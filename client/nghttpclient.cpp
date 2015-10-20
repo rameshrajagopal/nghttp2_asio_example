@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thread>
 #include <nghttp2/asio_http2_client.h>
 
 using boost::asio::ip::tcp;
@@ -7,14 +8,16 @@ using namespace std;
 using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::client;
 
-int main(int argc, char *argv[])
+#define MAX_NUM_CLIENTS  (2)
+
+void clientTask(int num)
 {
     boost::system::error_code ec;
     boost::asio::io_service io_service;
 
     session sess(io_service, "localhost", "7000");
-
-    sess.on_connect([&sess](tcp::resolver::iterator endpoint_it) {
+    auto clientNum = make_shared<int> (num);
+    sess.on_connect([&sess, clientNum](tcp::resolver::iterator endpoint_it) {
             boost::system::error_code ec;
 
             auto printer = [](const response &res) {
@@ -34,21 +37,21 @@ int main(int argc, char *argv[])
             auto req = sess.submit(ec, "GET", "http://localhost:7000/work");
             cout << "sent... " << num << endl;
             req->on_response(printer);
-            req->on_close([&sess, count, startPtr](uint32_t error_code) {
-                    if (--*count == 0) {
-                    struct timeval tend, tdiff;
-                    gettimeofday(&tend, NULL);
-                    if (tend.tv_usec < startPtr->tv_usec) {
-                       tdiff.tv_sec = tend.tv_sec - startPtr->tv_sec - 1;
-                       tdiff.tv_usec = 1000000 + tend.tv_usec - startPtr->tv_usec;
-                    } else {
-                       tdiff.tv_sec = tend.tv_sec - startPtr->tv_sec;
-                       tdiff.tv_usec = tend.tv_usec - startPtr->tv_usec;
-                    }
-                    cout << (tdiff.tv_sec * 1000) + (tdiff.tv_usec/1000) << " msec";
-                    sess.shutdown();
-                    }
-                    });
+            req->on_close([&sess, count, startPtr, clientNum](uint32_t error_code) {
+                if (--*count == 0) {
+                struct timeval tend, tdiff;
+                gettimeofday(&tend, NULL);
+                if (tend.tv_usec < startPtr->tv_usec) {
+                tdiff.tv_sec = tend.tv_sec - startPtr->tv_sec - 1;
+                tdiff.tv_usec = 1000000 + tend.tv_usec - startPtr->tv_usec;
+                } else {
+                tdiff.tv_sec = tend.tv_sec - startPtr->tv_sec;
+                tdiff.tv_usec = tend.tv_usec - startPtr->tv_usec;
+                }
+                cout << "client: " << *clientNum << " " << (tdiff.tv_sec * 1000) + (tdiff.tv_usec/1000) << " msec";
+                sess.shutdown();
+                }
+                });
             }
     });
 
@@ -57,4 +60,16 @@ int main(int argc, char *argv[])
             });
 
     io_service.run();
+}
+
+int main(int argc, char *argv[])
+{
+    for (int num = 0; num < MAX_NUM_CLIENTS; ++num) {
+        auto th = std::thread([&num]() { 
+           clientTask(num);
+        });
+        th.detach();
+    }
+    getchar();
+    return 0;
 }
