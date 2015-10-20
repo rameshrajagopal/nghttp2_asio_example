@@ -12,75 +12,65 @@ using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::server;
 
 
-#define MAX_NUM_WORKER_THREADS (1)
+#define MAX_NUM_WORKER_THREADS (10)
 
-class Request {
-public:
-    Request(const request & req, const response & res) :
-        req_(req), res_(res) {}
-    const response & getResponse() {
-        return res_;
-    }
-private:
-    const request & req_;
-    const response & res_;
-};
-
-class Worker {
-    public :
-        Worker(const int num, Queue<Request *> & queue) : 
-            threadNum(num), queue_(queue) {}
-
-        void dowork(const response & res) {
-            cout << "actual work" << endl;
-            usleep(1000 * 100);
-            res.write_head(200);
-            cout << "sending reply" << endl;
-            res.end("Hello world");
-        }
-        void run() {
-            while (true) {
-                Request * request = queue_.pop();
-                dowork(request->getResponse());
+struct Stream : public std::enable_shared_from_this<Stream> {
+    Stream(const request &req, const response &res,
+            boost::asio::io_service &io_service)
+        : io_service(io_service), req(req), res(res), closed(false) {}
+    void commit_result() {
+        auto self = shared_from_this();
+        io_service.post([self]() {
+            std::lock_guard<std::mutex> lg(self->mu);
+            if (self->closed) {
+               return;
             }
-        }
-private :
-      int threadNum;
-      Queue<Request *> & queue_;
-};
+            self->res.write_head(200);
+            self->res.end("done");
+        });
+    }
+    void set_closed(bool f) {
+        std::lock_guard<std::mutex> lg(mu);
+        closed = f;
+    }
 
+    boost::asio::io_service &io_service;
+    std::mutex mu;
+    const request &req;
+    const response &res;
+    bool closed;
+};
 
 int main(int argc, char *argv[]) {
-    boost::system::error_code ec;
     http2 server;
-    int reqNum = 0;
-    Queue<Request *> queue;
 
-    vector <thread*> threads;
-    vector <Worker*> workers;
-    for (int num = 0; num < MAX_NUM_WORKER_THREADS; ++num) {
-        Worker * w = new Worker(num, queue);
-        workers.push_back(w);
-        threads.push_back(new thread(&Worker::run, w));
-        threads[num]->detach();
-    }
     server.num_threads(2);
-    server.handle("/work", [&reqNum, &queue](const request &req, const response &res) {
-        int  cnt = reqNum++;
-        cout << "received req: " << cnt << " " << this_thread::get_id() << endl;
-        sleep(1);
-        res.write_head(200);
-        res.end("Hello world");
-        res.on_close([](const uint32_t status) {
-            cout << "closed connection" << status << endl;
-            });
+    Queue<shared_ptr<Stream>> q;
+
+    for (int num = 0; num < MAX_NUM_WORKER_THREADS; ++num) {
+        auto th = std::thread([&q]() {
+            for (;;) {
+                auto st = q.pop();
+                /* do actual work */
+                usleep(100 * 1000);
+                st->commit_result();
+            }
+        });
+        th.detach();
+    }
+    server.handle("/work", [&q](const request & req, const response & res) {
+        cout << "received req " << endl;
+        auto & io_service = res.io_service();
+        auto st = std::make_shared<Stream>(req, res, io_service);
+        res.on_close([st](uint32_t error_code) {
+            st->set_closed(true);
+        });
+        q.push(st);
     });
+
+    boost::system::error_code ec;
     if (server.listen_and_serve(ec, "localhost", "7000", true)) {
         std::cerr << "error: " << ec.message() << std::endl;
     }
     server.join();
-    for (int num = 0; num < MAX_NUM_WORKER_THREADS; ++num) {
-        delete workers[num];
-        delete threads[num];
-    }
 }

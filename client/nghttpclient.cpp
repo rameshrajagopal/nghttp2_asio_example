@@ -23,24 +23,29 @@ int main(int argc, char *argv[])
                 cout << endl;
                 });
             };
-            std::size_t num = 10;
+            std::size_t num = 1000;
             auto count = make_shared<int>(num);
 
             struct timeval tstart;
-            auto startPtr = make_shared<struct timeval>(tstart);
             gettimeofday(&tstart, NULL);
-            cout << tstart.tv_sec << " " << tstart.tv_usec << endl;
+            auto startPtr = make_shared<struct timeval>(tstart);
 
             for (size_t i = 0; i < num; ++i) {
             auto req = sess.submit(ec, "GET", "http://localhost:7000/work");
             cout << "sent... " << num << endl;
             req->on_response(printer);
             req->on_close([&sess, count, startPtr](uint32_t error_code) {
-                    uint64_t total_sec = 0;
                     if (--*count == 0) {
-                    struct timeval tend;
+                    struct timeval tend, tdiff;
                     gettimeofday(&tend, NULL);
-                    cout << tend.tv_sec << " " << tend.tv_usec << endl;
+                    if (tend.tv_usec < startPtr->tv_usec) {
+                       tdiff.tv_sec = tend.tv_sec - startPtr->tv_sec - 1;
+                       tdiff.tv_usec = 1000000 + tend.tv_usec - startPtr->tv_usec;
+                    } else {
+                       tdiff.tv_sec = tend.tv_sec - startPtr->tv_sec;
+                       tdiff.tv_usec = tend.tv_usec - startPtr->tv_usec;
+                    }
+                    cout << (tdiff.tv_sec * 1000) + (tdiff.tv_usec/1000) << " msec";
                     sess.shutdown();
                     }
                     });
