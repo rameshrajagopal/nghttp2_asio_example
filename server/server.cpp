@@ -44,7 +44,6 @@ int main(int argc, char *argv[]) {
 #endif
     server.handle("/", [&q, &reqNum](const request & req, const response & res) {
         int cnt = reqNum++;
-        cout << "received req " << cnt << endl;
         auto & io_service = res.io_service();
         auto st = std::make_shared<Stream>(req, res, io_service, cnt);
         res.on_close([st](uint32_t error_code) {

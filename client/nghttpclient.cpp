@@ -12,34 +12,48 @@ using namespace nghttp2::asio_http2::client;
 #define MAX_NUM_CLIENTS  (10)
 #define MAX_NUM_REQUESTS (1000)
 
-void clientTask(int clientNum)
+#define MASTER_URI  "http://192.168.0.241:8000/"
+#define MASTER_ADDRESS "192.168.0.241"
+#define MASTER_PORT "8000"
+
+void clientTask(const int clientNum, const int max_requests)
 {
     boost::system::error_code ec;
     boost::asio::io_service io_service;
 
     syslog(LOG_INFO, "client task: %d", clientNum);
-    session sess(io_service, "192.168.0.241", "8000");
-    sess.on_connect([&sess, clientNum](tcp::resolver::iterator endpoint_it) {
+    session sess(io_service, MASTER_ADDRESS, MASTER_PORT);
+    sess.on_connect([&sess, clientNum, max_requests](tcp::resolver::iterator endpoint_it) {
             boost::system::error_code ec;
 
             auto printer = [](const response &res) {
-            res.on_data([](const uint8_t * data, size_t len) {
-                syslog(LOG_INFO, "received data %d\n", (int)len);
+            res.on_data([&res](const uint8_t * data, size_t len) {
+                struct timeval curtime;
+                gettimeofday(&curtime, NULL);
+                auto search = res.header().find("clientreq");
+                if (search != res.header().end()) {
+                    syslog(LOG_INFO, "response:%s sec:%ld usec: %ld\n", search->second.value.c_str(), curtime.tv_sec, curtime.tv_usec);
+                }
                 });
             };
-            std::size_t num = MAX_NUM_REQUESTS;
+            std::size_t num = max_requests;
             auto count = make_shared<int>(num);
+            char buf[16];
+            header_map h;
 
-            struct timeval tstart;
+            struct timeval tstart, curtime;
             gettimeofday(&tstart, NULL);
             auto startPtr = make_shared<struct timeval>(tstart);
 
             for (size_t i = 0; i < num; ++i) {
-            auto req = sess.submit(ec, "GET", "http://192.168.0.241:8000/");
-            cout << "sent... " << num << endl;
+            snprintf(buf, sizeof(buf), "%d%ld", clientNum, num);
+            struct header_value hv = {buf, true};
+            h.insert(make_pair("clientreq", hv));
+            gettimeofday(&curtime, NULL);
+            syslog(LOG_INFO, "request:%s sec: %ld usec:%ld\n", buf, curtime.tv_sec, curtime.tv_usec);
+            auto req = sess.submit(ec, "GET", MASTER_URI, h);
             req->on_response(printer);
             req->on_close([&sess, count, startPtr, clientNum](uint32_t error_code) {
-                syslog(LOG_INFO, "response Num: %d clientNum: %d\n", *count, clientNum);
                 if (--*count == 0) {
                     struct timeval tend, tdiff;
                     gettimeofday(&tend, NULL);
@@ -67,11 +81,19 @@ void clientTask(int clientNum)
 
 int main(int argc, char *argv[])
 {
+    int max_threads, max_requests;
     openlog(NULL, 0, LOG_USER);
     syslog(LOG_INFO, "client started...");
-    for (int num = 0; num < MAX_NUM_CLIENTS; ++num) {
-        auto th = std::thread([&num]() { 
-           clientTask(num);
+    if (argc == 3) {
+       max_threads = atoi(argv[1]);    
+       max_requests = atoi(argv[2]);
+    } else {
+       max_threads = MAX_NUM_CLIENTS;
+       max_requests = MAX_NUM_REQUESTS;
+    }
+    for (int num = 0; num < max_threads; ++num) {
+        auto th = std::thread([num, max_requests]() { 
+           clientTask(num, max_requests);
         });
         th.detach();
     }

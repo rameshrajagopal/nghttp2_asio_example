@@ -15,7 +15,15 @@ void writeRequestNum(int reqNum, header_map & h)
 
     snprintf(buf, sizeof(buf), "%d", reqNum);
     struct header_value hv = {buf, true};
-    h.insert(std::make_pair("reqNum", hv));
+    h.insert(std::make_pair("reqnum", hv));
+}
+
+void writeClientRequestNum(const request & req, header_map & h)
+{
+    auto search = req.header().find("clientreq");
+    if (search != req.header().end()) {
+        h.insert(std::make_pair(search->first, search->second));
+    }
 }
 
 class FileData {
@@ -64,15 +72,13 @@ struct Stream : public std::enable_shared_from_this<Stream> {
                return;
             }
             writeRequestNum(self->req_num, h);
+            writeClientRequestNum(self->req, h);
             self->res.write_head(200, h);
-//            self->res.end("done");
-#if 1
             self->res.end([](uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
                   memset(buf, 'c', len);
                   *flags = NGHTTP2_DATA_FLAG_EOF;
                   return len;
                 });
-#endif
         });
     }
     int get_request_num() {
