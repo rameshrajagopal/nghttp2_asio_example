@@ -1,8 +1,11 @@
 #ifndef _STREAM_H_INCLUDED_
 #define _STREAM_H_INCLUDED_ 
 
+#include <cstdlib>
 #include <utility>
 #include <nghttp2/asio_http2_server.h>
+#include <fstream>
+using namespace std;
 using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::server;
 
@@ -15,13 +18,46 @@ void writeRequestNum(int reqNum, header_map & h)
     h.insert(std::make_pair("reqNum", hv));
 }
 
+#if 0
+class FileData {
+public:
+    FileData(const char * filename) {
+        ifstream is(filename);
+        streampos begin, end;
+        begin = is.tellg();
+        is.seekg(0, ios::end);
+        end = is.tellg();
+        is.seekg(0, ios::beg);
+        size = end - begin;
+        buffer = new char[size];
+        is >> buffer;
+    }
+    ssize_t read(uint8_t * data, size_t len) {
+        if (curpos >= size) return 0;
+        int ret = len;
+        if ((size-curpos) > len) {
+            memcpy(data, buffer + curpos, len);
+        } else {
+            ret = size - curpos;
+            memcpy(data, buffer + curpos, ret);
+        }
+        curpos += ret;
+        return ret;
+    }
+private:
+    size_t size{0};
+    size_t curpos{0};
+    char * buffer;
+
+};
+#endif
+
 struct Stream : public std::enable_shared_from_this<Stream> {
     Stream(const request &req, const response &res,
             boost::asio::io_service &io_service, int rnum)
         : io_service(io_service), req(req), res(res), 
           closed(false), req_num(rnum) {}
     void commit_result() {
-
         auto self = shared_from_this();
         io_service.post([self]() {
             header_map h;
@@ -32,6 +68,13 @@ struct Stream : public std::enable_shared_from_this<Stream> {
             writeRequestNum(self->req_num, h);
             self->res.write_head(200, h);
             self->res.end("done");
+#if 0
+            self->res.end([](uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
+                  cout << "len data to read " << len << endl;
+                  memcpy(buf, "hello", 5);
+                  *flags = NGHTTP2_DATA_FLAG_EOF;
+                });
+#endif
         });
     }
     int get_request_num() {

@@ -10,6 +10,7 @@ using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::client;
 
 #define MAX_NUM_CLIENTS  (2)
+#define MAX_NUM_REQUESTS (10)
 
 void clientTask(int clientNum)
 {
@@ -23,10 +24,10 @@ void clientTask(int clientNum)
 
             auto printer = [](const response &res) {
             res.on_data([](const uint8_t * data, size_t len) {
-                syslog(LOG_INFO, "%*.s\n", (int)len, reinterpret_cast<const char *>(data));
+                syslog(LOG_INFO, "received data %d\n", (int)len);
                 });
             };
-            std::size_t num = 1000;
+            std::size_t num = MAX_NUM_REQUESTS;
             auto count = make_shared<int>(num);
 
             struct timeval tstart;
