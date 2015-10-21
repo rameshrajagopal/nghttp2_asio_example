@@ -15,7 +15,7 @@ void clientTask(int num)
     boost::system::error_code ec;
     boost::asio::io_service io_service;
 
-    session sess(io_service, "localhost", "7000");
+    session sess(io_service, "localhost", "8000");
     auto clientNum = make_shared<int> (num);
     sess.on_connect([&sess, clientNum](tcp::resolver::iterator endpoint_it) {
             boost::system::error_code ec;
@@ -34,10 +34,11 @@ void clientTask(int num)
             auto startPtr = make_shared<struct timeval>(tstart);
 
             for (size_t i = 0; i < num; ++i) {
-            auto req = sess.submit(ec, "GET", "http://localhost:7000/work");
+            auto req = sess.submit(ec, "GET", "http://localhost:8000/");
             cout << "sent... " << num << endl;
             req->on_response(printer);
             req->on_close([&sess, count, startPtr, clientNum](uint32_t error_code) {
+                cout << "response got : " << *count << endl;
                 if (--*count == 0) {
                 struct timeval tend, tdiff;
                 gettimeofday(&tend, NULL);

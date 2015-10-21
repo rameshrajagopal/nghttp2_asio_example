@@ -1,1 +1,0 @@
- g++ -g -std=c++11 -o worker -I /home/indix/explore/nghttp2/nghttp2/src/includes -L /home/indix/explore/nghttp2/nghttp2/lib/.libs worker_queue.cpp -lnghttp2_asio -lboost_system -lssl -lcrypto -lpthread

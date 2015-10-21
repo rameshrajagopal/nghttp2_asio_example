@@ -5,7 +5,8 @@
 #include <memory>
 #include <nghttp2/asio_http2_server.h>
 
-#include "Queue.cpp"
+#include <queue.h>
+#include <stream.h>
 
 using namespace std;
 using namespace nghttp2::asio_http2;
@@ -13,33 +14,6 @@ using namespace nghttp2::asio_http2::server;
 
 
 #define MAX_NUM_WORKER_THREADS (10)
-
-struct Stream : public std::enable_shared_from_this<Stream> {
-    Stream(const request &req, const response &res,
-            boost::asio::io_service &io_service)
-        : io_service(io_service), req(req), res(res), closed(false) {}
-    void commit_result() {
-        auto self = shared_from_this();
-        io_service.post([self]() {
-            std::lock_guard<std::mutex> lg(self->mu);
-            if (self->closed) {
-               return;
-            }
-            self->res.write_head(200);
-            self->res.end("done");
-        });
-    }
-    void set_closed(bool f) {
-        std::lock_guard<std::mutex> lg(mu);
-        closed = f;
-    }
-
-    boost::asio::io_service &io_service;
-    std::mutex mu;
-    const request &req;
-    const response &res;
-    bool closed;
-};
 
 int main(int argc, char *argv[]) {
     http2 server;
@@ -60,8 +34,21 @@ int main(int argc, char *argv[]) {
     }
     server.handle("/work", [&q](const request & req, const response & res) {
         cout << "received req " << endl;
+#if 0
+        for (auto &kv : req.header()) {
+           cout << kv.first << ":" << kv.second.value << endl;
+        }
+#endif
+        auto search = req.header().find("reqnum");
+        int reqNum = 0;
+        if (search != req.header().end()) {
+           reqNum = std::stoi(search->second.value, nullptr, 10);
+           cout << "request num " << reqNum << endl;
+        } else {
+          cout << "invalid request" << endl;
+        }
         auto & io_service = res.io_service();
-        auto st = std::make_shared<Stream>(req, res, io_service);
+        auto st = std::make_shared<Stream>(req, res, io_service, reqNum);
         res.on_close([st](uint32_t error_code) {
             st->set_closed(true);
         });

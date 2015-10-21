@@ -1,3 +1,5 @@
+#ifndef _QUEUE_H_INCLUDED_
+#define _QUEUE_H_INCLUDED_
 #include <queue>
 #include <thread>
 #include <mutex>
@@ -41,3 +43,5 @@ class Queue
   std::mutex mutex_;
   std::condition_variable cond_;
 };
+
+#endif /*_QUEUE_H_INCLUDED_*/
