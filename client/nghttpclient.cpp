@@ -18,7 +18,7 @@ void clientTask(int clientNum)
     boost::asio::io_service io_service;
 
     syslog(LOG_INFO, "client task: %d", clientNum);
-    session sess(io_service, "localhost", "8000");
+    session sess(io_service, "192.168.0.241", "8000");
     sess.on_connect([&sess, clientNum](tcp::resolver::iterator endpoint_it) {
             boost::system::error_code ec;
 
@@ -35,7 +35,7 @@ void clientTask(int clientNum)
             auto startPtr = make_shared<struct timeval>(tstart);
 
             for (size_t i = 0; i < num; ++i) {
-            auto req = sess.submit(ec, "GET", "http://localhost:8000/");
+            auto req = sess.submit(ec, "GET", "http://192.168.0.241:8000/");
             cout << "sent... " << num << endl;
             req->on_response(printer);
             req->on_close([&sess, count, startPtr, clientNum](uint32_t error_code) {

@@ -39,7 +39,7 @@ typedef struct {
     string uri;
 }SlaveAddr;
 SlaveAddr slaveAddrArray[MAX_NUM_SLAVES] = {
-    "localhost", "7000", "http://localhost:7000/work",
+    "192.168.0.241", "7000", "http://192.168.0.241:7000/work",
     "192.168.0.203", "7000", "http://192.168.0.203:7000/work",
 };
 

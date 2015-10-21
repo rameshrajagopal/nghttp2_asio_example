@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
     });
 
     boost::system::error_code ec;
-    if (server.listen_and_serve(ec, "localhost", "8000", true)) {
+    if (server.listen_and_serve(ec, "192.168.0.241", "8000", true)) {
         std::cerr << "error: " << ec.message() << std::endl;
     }
     server.join();
