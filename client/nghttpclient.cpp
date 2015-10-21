@@ -9,8 +9,8 @@ using namespace std;
 using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::client;
 
-#define MAX_NUM_CLIENTS  (2)
-#define MAX_NUM_REQUESTS (10)
+#define MAX_NUM_CLIENTS  (10)
+#define MAX_NUM_REQUESTS (1000)
 
 void clientTask(int clientNum)
 {

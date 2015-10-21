@@ -18,7 +18,6 @@ void writeRequestNum(int reqNum, header_map & h)
     h.insert(std::make_pair("reqNum", hv));
 }
 
-#if 0
 class FileData {
 public:
     FileData(const char * filename) {
@@ -50,7 +49,6 @@ private:
     char * buffer;
 
 };
-#endif
 
 struct Stream : public std::enable_shared_from_this<Stream> {
     Stream(const request &req, const response &res,
@@ -67,12 +65,12 @@ struct Stream : public std::enable_shared_from_this<Stream> {
             }
             writeRequestNum(self->req_num, h);
             self->res.write_head(200, h);
-            self->res.end("done");
-#if 0
+//            self->res.end("done");
+#if 1
             self->res.end([](uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
-                  cout << "len data to read " << len << endl;
-                  memcpy(buf, "hello", 5);
+                  memset(buf, 'c', len);
                   *flags = NGHTTP2_DATA_FLAG_EOF;
+                  return len;
                 });
 #endif
         });
