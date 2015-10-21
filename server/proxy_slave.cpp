@@ -1,6 +1,7 @@
 #include <iostream>
 #include <nghttp2/asio_http2_client.h>
 #include <thread>
+#include <syslog.h>
 #include "queue.h"
 using boost::asio::ip::tcp;
 
@@ -31,7 +32,7 @@ private:
     const string & port;
 };
 
-#define MAX_NUM_SLAVES  (1)
+#define MAX_NUM_SLAVES  (2)
 typedef struct {
     string addr;
     string port;
@@ -39,7 +40,7 @@ typedef struct {
 }SlaveAddr;
 SlaveAddr slaveAddrArray[MAX_NUM_SLAVES] = {
     "localhost", "7000", "http://localhost:7000/work",
-//    "localhost", "7000", "http://localhost:7000/work",
+    "192.168.0.203", "7000", "http://192.168.0.203:7000/work",
 };
 
 class Stream;//forward
@@ -58,6 +59,7 @@ void SlaveTask(Queue<shared_ptr<Stream>> & q)
     vector<shared_ptr<ProxySlave>> slaves;
     requestMap reqMap;
 
+    syslog(LOG_INFO, "started proxy slave\n");
     for (int num = 0; num < MAX_NUM_SLAVES; ++num) {
         auto slave = make_shared<ProxySlave> (slaveAddrArray[num].addr, slaveAddrArray[num].port, num);
         slaves.push_back(slave);
@@ -65,23 +67,13 @@ void SlaveTask(Queue<shared_ptr<Stream>> & q)
                 boost::system::error_code ec;
                 boost::asio::io_service io_service;
 
-#if 1
                 sessions.push_back(session(io_service, slave->getAddr(), slave->getPort()));
                 sessions[num].on_connect([num](tcp::resolver::iterator endpoint_it) {
-                        cout << "connection established:  " << num << endl;
+                        syslog(LOG_INFO, "connection established: %d\n", num);
                         });
                 sessions[num].on_error([num](const boost::system::error_code &ec) {
-                        cout << "connection error: " << ec.message() << std::endl;
+                        syslog(LOG_INFO, "connection error: %d\n", ec.value());
                         });
-#else
-                session sess(io_service, slave->getAddr(), slave->getPort());
-                sess.on_connect([](tcp::resolver::iterator endpoint_it) {
-                    cout << "connection established" << endl;
-                    });
-                sess.on_error([](const boost::system::error_code & ec) {
-                    cout << "connection error " << ec << endl;
-                    });
-#endif
                 io_service.run();
                 });
         th.detach();
@@ -92,7 +84,7 @@ void SlaveTask(Queue<shared_ptr<Stream>> & q)
         char buf[16];
         // pop the st from queue, if possible put the reqNum as part of stream
         auto st = q.pop();
-        struct requestIdentity identity = {1, st};
+        struct requestIdentity identity = {MAX_NUM_SLAVES, st};
         // using st, get the reqNum
         // using the referenceNum store the st into requestMap
         clientReqNum = getRequestNum(st);
@@ -106,6 +98,7 @@ void SlaveTask(Queue<shared_ptr<Stream>> & q)
             struct header_value hv = {buf, true};
             h.insert(make_pair("reqnum", hv));
             /* make a request to slave */
+            syslog(LOG_INFO, "Sending request to slave:%d\n", num);
             auto req = sessions[num].submit(ec, "GET", slaveAddrArray[num].uri, h); 
             req->on_response([&reqMap](const response & res) {
 #if 0
@@ -120,15 +113,16 @@ void SlaveTask(Queue<shared_ptr<Stream>> & q)
                        cout << reqNum << endl;  
                        --reqMap[reqNum].cnt;
                        res.on_data([&reqMap, reqNum](const uint8_t * data, size_t len) {
-                        cout << "Response: " <<  reqMap[reqNum].cnt << endl;
+                        syslog(LOG_INFO, "got response: %d\n", reqMap[reqNum].cnt);
                         if (reqMap[reqNum].cnt == 0) {
+                            syslog(LOG_INFO, "sending response back to client\n");
                             sendResponse(reqMap[reqNum].stream);
                         }
                         });
                     }
             });
             req->on_close([](uint32_t status) {
-                    cout << "request closed" << endl;
+                    syslog(LOG_INFO, "request got closed\n");
                     });
             }
      }

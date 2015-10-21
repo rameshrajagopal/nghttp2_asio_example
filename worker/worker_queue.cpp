@@ -4,7 +4,7 @@
 #include <thread>
 #include <memory>
 #include <nghttp2/asio_http2_server.h>
-
+#include <syslog.h>
 #include <queue.h>
 #include <stream.h>
 
@@ -18,9 +18,11 @@ using namespace nghttp2::asio_http2::server;
 int main(int argc, char *argv[]) {
     http2 server;
 
+    openlog(NULL, 0, LOG_USER);
     server.num_threads(2);
     Queue<shared_ptr<Stream>> q;
 
+    syslog(LOG_INFO, "worker started with %d threads\n", MAX_NUM_WORKER_THREADS);
     for (int num = 0; num < MAX_NUM_WORKER_THREADS; ++num) {
         auto th = std::thread([&q]() {
             for (;;) {
@@ -43,9 +45,9 @@ int main(int argc, char *argv[]) {
         int reqNum = 0;
         if (search != req.header().end()) {
            reqNum = std::stoi(search->second.value, nullptr, 10);
-           cout << "request num " << reqNum << endl;
+           syslog(LOG_INFO, "received request %d\n", reqNum);
         } else {
-          cout << "invalid request" << endl;
+           syslog(LOG_INFO, "invalid request, doesn't have reqNum\n");
         }
         auto & io_service = res.io_service();
         auto st = std::make_shared<Stream>(req, res, io_service, reqNum);

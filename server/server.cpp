@@ -4,7 +4,7 @@
 #include <thread>
 #include <memory>
 #include <nghttp2/asio_http2_server.h>
-
+#include <syslog.h>
 #include "queue.h"
 #include "stream.h"
 
@@ -31,6 +31,8 @@ int main(int argc, char *argv[]) {
     http2 server;
     volatile int reqNum = 0;
 
+    openlog(NULL, 0, LOG_USER);
+    syslog(LOG_INFO, "server started...\n");
     server.num_threads(2);
     Queue<shared_ptr<Stream>> q;
 
@@ -56,4 +58,5 @@ int main(int argc, char *argv[]) {
         std::cerr << "error: " << ec.message() << std::endl;
     }
     server.join();
+    closelog();
 }
