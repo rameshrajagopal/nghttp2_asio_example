@@ -32,13 +32,14 @@ private:
     const string & port;
 };
 
-#define MAX_NUM_SLAVES  (2)
+#define MAX_NUM_SLAVES  (3)
 typedef struct {
     string addr;
     string port;
     string uri;
 }SlaveAddr;
 SlaveAddr slaveAddrArray[MAX_NUM_SLAVES] = {
+    "127.0.0.1", "7000", "http://localhost:7000/work",
     "192.168.0.241", "7000", "http://192.168.0.241:7000/work",
     "192.168.0.203", "7000", "http://192.168.0.203:7000/work",
 };
@@ -46,6 +47,7 @@ SlaveAddr slaveAddrArray[MAX_NUM_SLAVES] = {
 class Stream;//forward
 struct requestIdentity {
     int cnt;
+    int expectedSize;
     shared_ptr<Stream> stream;
 };
 
@@ -53,14 +55,17 @@ using requestMap = std::map<int, requestIdentity>;
 extern int getRequestNum(shared_ptr<Stream> st);
 extern void sendResponse(shared_ptr<Stream> st);
 
-void SlaveTask(Queue<shared_ptr<Stream>> & q)
+void SlaveTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
 {
     vector<session> sessions;
     vector<shared_ptr<ProxySlave>> slaves;
     requestMap reqMap;
 
-    syslog(LOG_INFO, "started proxy slave\n");
-    for (int num = 0; num < MAX_NUM_SLAVES; ++num) {
+    syslog(LOG_INFO, "started proxy slavesi: %d\n", numSlaves);
+    if (numSlaves > MAX_NUM_SLAVES) {
+        numSlaves = MAX_NUM_SLAVES;
+    }
+    for (int num = 0; num < numSlaves; ++num) {
         auto slave = make_shared<ProxySlave> (slaveAddrArray[num].addr, slaveAddrArray[num].port, num);
         slaves.push_back(slave);
         auto th = std::thread([num, slave, &sessions]() {
@@ -80,19 +85,19 @@ void SlaveTask(Queue<shared_ptr<Stream>> & q)
     }
     int clientReqNum = 0;
     while (true) {
-        header_map h;
         char buf[16];
         // pop the st from queue, if possible put the reqNum as part of stream
         auto st = q.pop();
-        struct requestIdentity identity = {MAX_NUM_SLAVES, st};
+        struct requestIdentity identity = {numSlaves, 0, st};
         // using st, get the reqNum
         // using the referenceNum store the st into requestMap
         clientReqNum = getRequestNum(st);
         reqMap[clientReqNum] = identity;
         //send request to multiple slaves 
         // on data callback, take the reqNum and get the stream entity
-        for (int num = 0; num < MAX_NUM_SLAVES; ++num) {
+        for (int num = 0; num < numSlaves; ++num) {
             boost::system::error_code ec;
+            header_map h;
             /* put the reqNum into the header */
             snprintf(buf, sizeof(buf), "%d", clientReqNum);
             struct header_value hv = {buf, true};
@@ -111,15 +116,22 @@ void SlaveTask(Queue<shared_ptr<Stream>> & q)
                     if (search != res.header().end()) {
                        reqNum = std::stoi(search->second.value, nullptr, 10);
                        cout << reqNum << endl;  
-                       --reqMap[reqNum].cnt;
-                       res.on_data([&reqMap, reqNum](const uint8_t * data, size_t len) {
-                        syslog(LOG_INFO, "got response: %d\n", reqMap[reqNum].cnt);
-                        if (reqMap[reqNum].cnt == 0) {
-                            syslog(LOG_INFO, "sending response back to client\n");
-                            sendResponse(reqMap[reqNum].stream);
-                        }
-                        });
                     }
+                    auto kv = res.header().find("size");
+                    if (kv != res.header().end()) {
+                       reqMap[reqNum].expectedSize = std::stoi(kv->second.value, nullptr, 10);
+                    }
+                    res.on_data([&reqMap, reqNum](const uint8_t * data, size_t len) {
+                        syslog(LOG_INFO, "got response: %d len: %ld\n", reqMap[reqNum].cnt, len);
+                        reqMap[reqNum].expectedSize -= len;
+                        if (reqMap[reqNum].expectedSize == 0) {
+                           --reqMap[reqNum].cnt;
+                        }
+                        if (reqMap[reqNum].cnt == 0) {
+                           syslog(LOG_INFO, "sending response back to client\n");
+                           sendResponse(reqMap[reqNum].stream);
+                        }
+                    });
             });
             req->on_close([](uint32_t status) {
                     syslog(LOG_INFO, "request got closed\n");

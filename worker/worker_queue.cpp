@@ -14,11 +14,22 @@ using namespace nghttp2::asio_http2::server;
 
 
 #define MAX_NUM_WORKER_THREADS (10)
+#define SLAVE_ADDR  "127.0.0.1"
+#define SLAVE_PORT  "7000"
 
 int main(int argc, char *argv[]) {
     http2 server;
+    string slaveAddr;
+    string slavePort;
 
     openlog(NULL, 0, LOG_USER);
+    if (argc == 3) {
+        slaveAddr = argv[1];
+        slavePort = argv[2];
+    } else {
+        slaveAddr = SLAVE_ADDR;
+        slavePort = SLAVE_PORT;
+    }
     server.num_threads(2);
     Queue<shared_ptr<Stream>> q;
 
@@ -58,7 +69,7 @@ int main(int argc, char *argv[]) {
     });
 
     boost::system::error_code ec;
-    if (server.listen_and_serve(ec, "192.168.0.241", "7000", true)) {
+    if (server.listen_and_serve(ec, slaveAddr, slavePort, true)) {
         std::cerr << "error: " << ec.message() << std::endl;
     }
     server.join();

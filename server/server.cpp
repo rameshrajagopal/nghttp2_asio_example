@@ -13,7 +13,7 @@ using namespace std;
 using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::server;
 
-extern void SlaveTask(Queue<shared_ptr<Stream>> & q);
+extern void SlaveTask(Queue<shared_ptr<Stream>> & q, int numSlaves);
 
 int getRequestNum(shared_ptr<Stream> st) 
 {
@@ -30,20 +30,29 @@ void sendResponse(shared_ptr<Stream> st)
 int main(int argc, char *argv[]) {
     http2 server;
     volatile int reqNum = 0;
+    int numSlaves = 0;
 
     openlog(NULL, 0, LOG_USER);
     syslog(LOG_INFO, "server started...\n");
+    if (argc == 2) {
+        numSlaves = atoi(argv[1]);
+    } else {
+        numSlaves = 2;
+    }
     server.num_threads(2);
     Queue<shared_ptr<Stream>> q;
 
 #if 1
-    auto th = std::thread([&q]() {
-            SlaveTask(q);
+    auto th = std::thread([&q, numSlaves]() {
+            SlaveTask(q, numSlaves);
     });
     th.detach();
 #endif
     server.handle("/", [&q, &reqNum](const request & req, const response & res) {
         int cnt = reqNum++;
+        for (auto &kv: req.header()) {
+            cout << kv.first << " " << kv.second.value << endl;
+        }
         auto & io_service = res.io_service();
         auto st = std::make_shared<Stream>(req, res, io_service, cnt);
         res.on_close([st](uint32_t error_code) {
@@ -53,9 +62,10 @@ int main(int argc, char *argv[]) {
     });
 
     boost::system::error_code ec;
-    if (server.listen_and_serve(ec, "192.168.0.241", "8000", true)) {
+    if (server.listen_and_serve(ec, "localhost", "8000", true)) {
         std::cerr << "error: " << ec.message() << std::endl;
     }
     server.join();
     closelog();
 }
+

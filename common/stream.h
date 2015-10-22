@@ -22,8 +22,18 @@ void writeClientRequestNum(const request & req, header_map & h)
 {
     auto search = req.header().find("clientreq");
     if (search != req.header().end()) {
+        cout << search->second.value << endl;
         h.insert(std::make_pair(search->first, search->second));
     }
+}
+
+void writeDatasize(int size, header_map & h)
+{
+    char buf[16];
+
+    snprintf(buf, sizeof(buf), "%d", size);
+    struct header_value hv = {buf, true};
+    h.insert(std::make_pair("size", hv));
 }
 
 class FileData {
@@ -73,6 +83,7 @@ struct Stream : public std::enable_shared_from_this<Stream> {
             }
             writeRequestNum(self->req_num, h);
             writeClientRequestNum(self->req, h);
+            writeDatasize(16 * 1024, h);
             self->res.write_head(200, h);
             self->res.end([](uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
                   memset(buf, 'c', len);
