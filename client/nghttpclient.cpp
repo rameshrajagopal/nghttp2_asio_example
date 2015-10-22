@@ -13,6 +13,8 @@ using namespace nghttp2::asio_http2::client;
 #define MAX_NUM_CLIENTS  (100)
 #define MAX_NUM_REQUESTS (1000)
 
+#define within(num) (int) ((float) num * random() / (RAND_MAX + 1.0))
+
 void clientTask(const int clientNum, const int max_requests, const string master_addr, const string master_port)
 {
     boost::system::error_code ec;
@@ -51,7 +53,7 @@ void clientTask(const int clientNum, const int max_requests, const string master
             struct timeval tstart, curtime;
             gettimeofday(&tstart, NULL);
             auto startPtr = make_shared<struct timeval>(tstart);
-
+            srandom((unsigned) time(NULL));
             for (size_t i = 0; i < num; ++i) {
             header_map h;
             snprintf(buf, sizeof(buf), "%d:%ld", clientNum, i);
@@ -78,6 +80,7 @@ void clientTask(const int clientNum, const int max_requests, const string master
                     sess.shutdown();
                 }
                 });
+             usleep(within(400 * 1000));//400 msec
             }
     });
 
