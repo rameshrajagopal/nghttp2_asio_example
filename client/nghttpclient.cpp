@@ -1,6 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <nghttp2/asio_http2_client.h>
+#include <config.h>
 #include <syslog.h>
 
 using boost::asio::ip::tcp;
@@ -11,11 +12,6 @@ using namespace nghttp2::asio_http2::client;
 
 #define MAX_NUM_CLIENTS  (100)
 #define MAX_NUM_REQUESTS (1000)
-
-//#define MASTER_URI  "http://192.168.0.241:8000/"
-#define MASTER_URI "http://localhost:8000/"
-#define MASTER_ADDRESS "192.168.0.241"
-#define MASTER_PORT "8000"
 
 void clientTask(const int clientNum, const int max_requests, const string master_addr, const string master_port)
 {
@@ -64,7 +60,7 @@ void clientTask(const int clientNum, const int max_requests, const string master
             clientMap[buf] = 0;
             gettimeofday(&curtime, NULL);
             syslog(LOG_INFO, "request:%s sec: %ld usec:%ld\n", buf, curtime.tv_sec, curtime.tv_usec);
-            auto req = sess.submit(ec, "GET", MASTER_URI, h);
+            auto req = sess.submit(ec, "GET", MASTER_NODE_URI, h);
             req->on_response(printer);
             req->on_close([&sess, count, startPtr, clientNum](uint32_t error_code) {
                 if (--*count == 0) {
@@ -103,8 +99,8 @@ int main(int argc, char *argv[])
         master_addr = argv[3];
         master_port = argv[4];
     } else {
-        master_addr = MASTER_ADDRESS;
-        master_port = MASTER_PORT;
+        master_addr = MASTER_NODE_ADDR;
+        master_port = MASTER_NODE_PORT;
     }
     if (argc >= 3) {
        max_threads = atoi(argv[1]);    
