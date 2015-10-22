@@ -10,6 +10,12 @@ using namespace std;
 using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::client;
 
+SlaveAddr slaveAddrArray[MAX_NUM_SLAVES] = {
+    SLAVE_ADDR, SLAVE_PORT, "http://192.168.0.241:7000/work",
+    "192.168.0.203", "7000", "http://192.168.0.203:7000/work",
+    "127.0.0.1", "7000", "http://localhost:7000/work",
+};
+
 class ProxySlave {
 public:
     ProxySlave(const string & address, const string & portnum, int num): 

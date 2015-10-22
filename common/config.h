@@ -1,9 +1,13 @@
 #ifndef _NGHTTP_CONFIG_H_INCLUDED_
 #define _NGHTTP_CONFIG_H_INCLUDED_
 
-#define  MASTER_NODE_ADDR  "127.0.0.1"
+#define  MASTER_NODE_ADDR  "192.168.0.241"
 #define  MASTER_NODE_PORT  "8000"
-#define  MASTER_NODE_URI   "http://127.0.0.1:8000/"
+#define  SEMICOLON         ":"
+#define  SLASH             "/"
+#define  MASTER_PORT       MASTER_NODE_ADDR SEMICOLON MASTER_NODE_PORT SLASH
+#define  PROTOCOL          "http://"
+#define  MASTER_NODE_URI   PROTOCOL MASTER_PORT
 
 #define MAX_NUM_SLAVES  (3)
 typedef struct {
@@ -12,10 +16,8 @@ typedef struct {
     std::string uri;
 }SlaveAddr;
 
-SlaveAddr slaveAddrArray[MAX_NUM_SLAVES] = {
-    "127.0.0.1", "7000", "http://localhost:7000/work",
-    "192.168.0.241", "7000", "http://192.168.0.241:7000/work",
-    "192.168.0.203", "7000", "http://192.168.0.203:7000/work",
-};
+#define SLAVE_ADDR  "192.168.0.241"
+#define SLAVE_PORT  "7000"
+
 
 #endif /*_NGHTTP_CONFIG_H_INCLUDED_*/

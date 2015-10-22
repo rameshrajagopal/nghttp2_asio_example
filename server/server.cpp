@@ -7,6 +7,7 @@
 #include <syslog.h>
 #include "queue.h"
 #include "stream.h"
+#include "config.h"
 
 
 using namespace std;
@@ -62,7 +63,7 @@ int main(int argc, char *argv[]) {
     });
 
     boost::system::error_code ec;
-    if (server.listen_and_serve(ec, "localhost", "8000", true)) {
+    if (server.listen_and_serve(ec, MASTER_NODE_ADDR, MASTER_NODE_PORT, true)) {
         std::cerr << "error: " << ec.message() << std::endl;
     }
     server.join();

@@ -38,7 +38,7 @@ void clientTask(const int clientNum, const int max_requests, const string master
                 }
                 res.on_data([&clientMap, key](const uint8_t * data, size_t len) {
                    clientMap[key] -= len;
-                   syslog(LOG_INFO, "data from server of len: %d\n", len);
+                   syslog(LOG_INFO, "data from server of len: %ld\n", len);
                    if (len == 0) {
                        struct timeval curtime;
                        gettimeofday(&curtime, NULL);

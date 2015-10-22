@@ -7,6 +7,7 @@
 #include <syslog.h>
 #include <queue.h>
 #include <stream.h>
+#include <config.h>
 
 using namespace std;
 using namespace nghttp2::asio_http2;
@@ -14,8 +15,6 @@ using namespace nghttp2::asio_http2::server;
 
 
 #define MAX_NUM_WORKER_THREADS (10)
-#define SLAVE_ADDR  "127.0.0.1"
-#define SLAVE_PORT  "7000"
 
 int main(int argc, char *argv[]) {
     http2 server;
