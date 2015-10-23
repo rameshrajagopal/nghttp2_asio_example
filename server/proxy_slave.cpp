@@ -11,8 +11,9 @@ using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::client;
 
 SlaveAddr slaveAddrArray[MAX_NUM_SLAVES] = {
-    SLAVE_ADDR, SLAVE_PORT, "http://192.168.0.241:7000/work",
-    "192.168.0.203", "7000", "http://192.168.0.203:7000/work",
+    /* let the preprocessor and compiler do the actual concat */
+    SLAVE_ADDR, SLAVE_PORT,  PROTOCOL SLAVE_ADDR SEMICOLON SLAVE_PORT WORKER_FILE, 
+    SLAVE1_ADDR, SLAVE_PORT, PROTOCOL SLAVE1_ADDR SEMICOLON SLAVE_PORT WORKER_FILE,
     "127.0.0.1", "7000", "http://localhost:7000/work",
 };
 
@@ -56,7 +57,7 @@ void SlaveTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
     vector<shared_ptr<ProxySlave>> slaves;
     requestMap reqMap;
 
-    syslog(LOG_INFO, "started proxy slavesi: %d\n", numSlaves);
+    syslog(LOG_INFO, "started proxy slaves: %d\n", numSlaves);
     if (numSlaves > MAX_NUM_SLAVES) {
         numSlaves = MAX_NUM_SLAVES;
     }
