@@ -4,6 +4,7 @@
 #include <syslog.h>
 #include "queue.h"
 #include "config.h"
+#include "request_mapper.h"
 using boost::asio::ip::tcp;
 
 using namespace std;
@@ -40,14 +41,6 @@ private:
     const string & port;
 };
 
-class Stream;//forward
-struct requestIdentity {
-    int cnt;
-    int expectedSize;
-    shared_ptr<Stream> stream;
-};
-
-using requestMap = std::map<int, requestIdentity>;
 extern int getRequestNum(shared_ptr<Stream> st);
 extern void sendResponse(shared_ptr<Stream> st);
 
@@ -55,7 +48,7 @@ void SlaveTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
 {
     vector<session> sessions;
     vector<shared_ptr<ProxySlave>> slaves;
-    requestMap reqMap;
+    RequestMap reqMap;
 
     syslog(LOG_INFO, "started proxy slaves: %d\n", numSlaves);
     if (numSlaves > MAX_NUM_SLAVES) {
@@ -84,11 +77,11 @@ void SlaveTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
         char buf[16];
         // pop the st from queue, if possible put the reqNum as part of stream
         auto st = q.pop();
-        struct requestIdentity identity = {numSlaves, 0, st};
+        struct RequestIdentity identity = {numSlaves, 0, st};
         // using st, get the reqNum
         // using the referenceNum store the st into requestMap
         clientReqNum = getRequestNum(st);
-        reqMap[clientReqNum] = identity;
+        reqMap.put(clientReqNum, identity);
         //send request to multiple slaves 
         // on data callback, take the reqNum and get the stream entity
         for (int num = 0; num < numSlaves; ++num) {
@@ -115,17 +108,17 @@ void SlaveTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
                     }
                     auto kv = res.header().find("size");
                     if (kv != res.header().end()) {
-                       reqMap[reqNum].expectedSize = std::stoi(kv->second.value, nullptr, 10);
+                       int expectedSize = std::stoi(kv->second.value, nullptr, 10);
+                       reqMap.incrementSize(reqNum, expectedSize);
                     }
                     res.on_data([&reqMap, reqNum](const uint8_t * data, size_t len) {
-                        syslog(LOG_INFO, "got response: %d len: %ld\n", reqMap[reqNum].cnt, len);
-                        reqMap[reqNum].expectedSize -= len;
-                        if (reqMap[reqNum].expectedSize == 0) {
-                           --reqMap[reqNum].cnt;
-                        }
-                        if (reqMap[reqNum].cnt == 0) {
-                           syslog(LOG_INFO, "sending response back to client\n");
-                           sendResponse(reqMap[reqNum].stream);
+                        syslog(LOG_INFO, "got response of len: %ld\n", len);
+                        if (len == 0) {
+                            int cnt = reqMap.decrementCnt(reqNum);
+                            if (cnt == 0) {
+                               syslog(LOG_INFO, "sending response back to client\n");
+                               sendResponse(reqMap.getStream(reqNum));
+                            }
                         }
                     });
             });

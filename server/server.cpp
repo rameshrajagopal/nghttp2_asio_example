@@ -30,7 +30,7 @@ void sendResponse(shared_ptr<Stream> st)
 
 int main(int argc, char *argv[]) {
     http2 server;
-    volatile int reqNum = 0;
+    std::atomic<int> reqNum {0};
     int numSlaves = 0;
 
     openlog(NULL, 0, LOG_USER);

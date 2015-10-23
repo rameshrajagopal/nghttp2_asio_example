@@ -3,3 +3,5 @@ server
 worker
 core
 cpp_client
+cscopt.out
+tags
