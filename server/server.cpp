@@ -14,7 +14,7 @@ using namespace std;
 using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::server;
 
-extern void SlaveTask(Queue<shared_ptr<Stream>> & q, int numSlaves);
+extern void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves);
 
 int getRequestNum(shared_ptr<Stream> st) 
 {
@@ -43,12 +43,10 @@ int main(int argc, char *argv[]) {
     server.num_threads(2);
     Queue<shared_ptr<Stream>> q;
 
-#if 1
     auto th = std::thread([&q, numSlaves]() {
-            SlaveTask(q, numSlaves);
+       ReqRouterTask(q, numSlaves);
     });
     th.detach();
-#endif
     server.handle("/", [&q, &reqNum](const request & req, const response & res) {
         int cnt = reqNum++;
         for (auto &kv: req.header()) {
