@@ -92,16 +92,16 @@ extern void sendResponse(shared_ptr<Stream> st);
 void SlaveIOTask(int sNum, shared_ptr<ProxySlave> slave, vector<session> & sessions)
 {
     boost::system::error_code ec;
-    boost::asio::io_service io_service;
+    boost::asio::io_service ios;
 
-    sessions.push_back(session(io_service, slave->getAddr(), slave->getPort()));
+    sessions.push_back(session(ios, slave->getAddr(), slave->getPort()));
     sessions[sNum].on_connect([slave](tcp::resolver::iterator endpoint_it) {
        syslog(LOG_INFO, "connection established with %s\n", slave->getAddr().c_str());
     });
     sessions[sNum].on_error([slave](const boost::system::error_code &ec) {
        syslog(LOG_INFO, "connection error %s ec: %d\n", slave->getAddr().c_str(), ec.value());
     });
-    io_service.run();
+    ios.run();
 }
 
 void ResRouterTask(RequestMap & reqMap, Queue<int> & resQ)
@@ -132,6 +132,7 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, SlaveRequest slaveReq,
     syslog(LOG_INFO, "Sending request to slave: %s\n", slave->getAddr().c_str());
     boost::system::error_code ec;
     auto req = sessions[sNum].submit(ec, slaveReq.method, slaveReq.uri, h);
+    sessions[sNum].io_service().post([req, slave]() {
     req->on_response([slave](const response & res) {
             auto search = res.header().find("reqnum");
             assert(search != res.header().end());
@@ -149,6 +150,7 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, SlaveRequest slaveReq,
                    slave->putRes(reqNum);
                 }
             });
+        });
     });
 }
 
