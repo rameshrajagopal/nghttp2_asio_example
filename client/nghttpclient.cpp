@@ -45,7 +45,7 @@ void printStats(map<string, struct timeval> & reqMap)
 
     auto it = reqMap.begin();
     for (; it != reqMap.end(); ++it) {
-        syslog(LOG_INFO, "%s:  %ld %d\n", it->first, it->second.tv_sec, it->second.tv_usec);
+//        syslog(LOG_INFO, "%s:  %ld %d\n", it->first, it->second.tv_sec, it->second.tv_usec);
         total_msec = (it->second.tv_sec * 1000) + (it->second.tv_usec/1000);
         total += total_msec; 
         ++num_requests;
@@ -149,7 +149,6 @@ int main(int argc, char *argv[])
 {
     int max_threads, max_requests;
     string master_addr, master_port;
-    std::map<string, struct timeval> reqMap;
 
     openlog(NULL, 0, LOG_USER);
     SYSLOG(LOG_INFO, "client started...");
@@ -167,14 +166,17 @@ int main(int argc, char *argv[])
        max_threads = MAX_NUM_CLIENTS;
        max_requests = MAX_NUM_REQUESTS;
     }
+    std::map<string, struct timeval> reqMaps[max_threads];
     for (int num = 0; num < max_threads; ++num) {
-        auto th = std::thread([num, max_requests, master_addr, master_port, &reqMap]() { 
-           clientTask(num, max_requests, master_addr, master_port, reqMap);
+        auto th = std::thread([num, max_requests, master_addr, master_port, &reqMaps]() { 
+           clientTask(num, max_requests, master_addr, master_port, reqMaps[num]);
         });
         th.detach();
     }
     getchar();
-    printStats(reqMap);
+    for (int num = 0; num < max_threads; ++num) {
+       printStats(reqMaps[num]);
+    }
     closelog();
     return 0;
 }
