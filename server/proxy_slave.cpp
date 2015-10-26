@@ -66,13 +66,17 @@ public:
     const string & getAddr() { return addr; }
     const string & getPort() { return port; }
 
-    SlaveRequest getNextReq() 
+    shared_ptr<SlaveRequest> getNextReq() 
     {
         return reqQ.pop();
     }
-    void putReq(SlaveRequest sReq)
+    void putReq(shared_ptr<SlaveRequest> sReq)
     {
         reqQ.push(sReq);
+    }
+    bool isRequestAvailable() 
+    {
+        return !reqQ.is_empty();
     }
     void putRes(int reqNum)
     {
@@ -82,12 +86,14 @@ private:
     int   slaveNum;
     const string & addr;
     const string & port;
-    Queue<SlaveRequest> reqQ;
+    Queue<shared_ptr<SlaveRequest>> reqQ;
     Queue<int> & resQ;
 };
 
 extern int getRequestNum(shared_ptr<Stream> st);
 extern void sendResponse(shared_ptr<Stream> st);
+static void reqDispatcher(shared_ptr<ProxySlave> slave, shared_ptr<SlaveRequest> slaveReq, 
+                   vector<session> & sessions, int sNum);
 
 void SlaveIOTask(int sNum, shared_ptr<ProxySlave> slave, vector<session> & sessions)
 {
@@ -100,6 +106,12 @@ void SlaveIOTask(int sNum, shared_ptr<ProxySlave> slave, vector<session> & sessi
     });
     sessions[sNum].on_error([slave](const boost::system::error_code &ec) {
        syslog(LOG_INFO, "connection error %s ec: %d\n", slave->getAddr().c_str(), ec.value());
+    });
+    ios.post([&sessions, sNum, slave]() {
+        if (slave->isRequestAvailable()) {
+           auto req = slave->getNextReq();
+           reqDispatcher(slave, req, sessions, sNum);
+        }
     });
     ios.run();
 }
@@ -118,21 +130,20 @@ void ResRouterTask(RequestMap & reqMap, Queue<int> & resQ)
     }
 }
 
-void reqDispatcher(shared_ptr<ProxySlave> slave, SlaveRequest slaveReq, 
-                       vector<session> & sessions,
-                       int sNum)
+void reqDispatcher(shared_ptr<ProxySlave> slave, shared_ptr<SlaveRequest> slaveReq, 
+                   vector<session> & sessions, int sNum)
 {
     header_map h;
     char buf[16] = {0};
     /* wrap the client request into header */
-    snprintf(buf, sizeof(buf), "%d", slaveReq.clientReqNum);
+    snprintf(buf, sizeof(buf), "%d", slaveReq->clientReqNum);
     struct header_value hv = {buf, true};
     h.insert(make_pair("reqnum", hv));
     /* actual call to slave */
     syslog(LOG_INFO, "Sending request to slave: %s\n", slave->getAddr().c_str());
     boost::system::error_code ec;
-    auto req = sessions[sNum].submit(ec, slaveReq.method, slaveReq.uri, h);
-    sessions[sNum].io_service().post([req, slave]() {
+    auto req = sessions[sNum].submit(ec, slaveReq->method, slaveReq->uri, h);
+//    sessions[sNum].io_service().post([req, slave]() {
     req->on_response([slave](const response & res) {
             auto search = res.header().find("reqnum");
             assert(search != res.header().end());
@@ -150,8 +161,8 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, SlaveRequest slaveReq,
                    slave->putRes(reqNum);
                 }
             });
-        });
-    });
+     });
+  //  });
 }
 
 void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
@@ -194,8 +205,8 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
         reqMap.put(clientReqNum, identity);
 
         for (int num = 0; num < numSlaves; ++num) {
-            SlaveRequest sReq(clientReqNum, "GET", slaveAddrArray[num].uri, "ActualRequest");
-            reqDispatcher(slaves[num], sReq, sessions, num);
+            shared_ptr<SlaveRequest>  sReq = make_shared<SlaveRequest> (clientReqNum, "GET", slaveAddrArray[num].uri, "ActualRequest");
+            slaves[num]->putReq(sReq);
         }
     }
 }
