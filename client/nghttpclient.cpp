@@ -38,11 +38,11 @@ void clientTask(const int clientNum, const int max_requests, const string master
                 }
                 res.on_data([&clientMap, key](const uint8_t * data, size_t len) {
                    clientMap[key] -= len;
-                   syslog(LOG_INFO, "data from server of len: %ld\n", len);
+//                   syslog(LOG_INFO, "data from server of len: %ld\n", len);
                    if (len == 0) {
                        struct timeval curtime;
                        gettimeofday(&curtime, NULL);
-                       syslog(LOG_INFO, "response:%s sec:%ld usec: %ld\n", key.c_str(), curtime.tv_sec, curtime.tv_usec);
+                       syslog(LOG_INFO, "response %s sec:%ld usec:%ld\n", key.c_str(), curtime.tv_sec, curtime.tv_usec);
                    }
                 });
             };
@@ -61,7 +61,7 @@ void clientTask(const int clientNum, const int max_requests, const string master
             h.insert(make_pair("clientreq", hv));
             clientMap[buf] = 0;
             gettimeofday(&curtime, NULL);
-            syslog(LOG_INFO, "request:%s sec: %ld usec:%ld\n", buf, curtime.tv_sec, curtime.tv_usec);
+            syslog(LOG_INFO, "request %s sec:%ld usec:%ld\n", buf, curtime.tv_sec, curtime.tv_usec);
             auto req = sess.submit(ec, "GET", MASTER_NODE_URI, h);
             req->on_response(printer);
             req->on_close([&sess, count, startPtr, clientNum](uint32_t error_code) {

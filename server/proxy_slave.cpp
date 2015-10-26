@@ -61,22 +61,24 @@ public:
     ProxySlave(const string & address, const string & portnum, int num, 
                Queue<int> & rq): 
                addr(address), port(portnum), slaveNum(num), resQ(rq) 
-    {}
+    {
+        reqQ = make_shared<Queue<int>>();
+    }
     
     const string & getAddr() { return addr; }
     const string & getPort() { return port; }
 
-    shared_ptr<SlaveRequest> getNextReq() 
+    int getNextReq() 
     {
-        return reqQ.pop();
+        return reqQ->pop();
     }
-    void putReq(shared_ptr<SlaveRequest> sReq)
+    void putReq(int reqNum)
     {
-        reqQ.push(sReq);
+        reqQ->push(reqNum);
     }
     bool isRequestAvailable() 
     {
-        return !reqQ.is_empty();
+        return !reqQ->is_empty();
     }
     void putRes(int reqNum)
     {
@@ -86,35 +88,53 @@ private:
     int   slaveNum;
     const string & addr;
     const string & port;
-    Queue<shared_ptr<SlaveRequest>> reqQ;
+//    Queue<shared_ptr<SlaveRequest>> reqQ;
+    shared_ptr<Queue<int>>  reqQ;
     Queue<int> & resQ;
 };
 
 extern int getRequestNum(shared_ptr<Stream> st);
 extern void sendResponse(shared_ptr<Stream> st);
-static void reqDispatcher(shared_ptr<ProxySlave> slave, shared_ptr<SlaveRequest> slaveReq, 
+static void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum, 
                    vector<session> & sessions, int sNum);
 
-void SlaveIOTask(int sNum, shared_ptr<ProxySlave> slave, vector<session> & sessions)
-{
-    boost::system::error_code ec;
-    boost::asio::io_service ios;
+class SlaveIOTask {
+public:
+    SlaveIOTask() {}
+    void run(shared_ptr<ProxySlave> slave, vector<session> & sessions, int sNum)
+    {
+            boost::system::error_code ec;
 
-    sessions.push_back(session(ios, slave->getAddr(), slave->getPort()));
-    sessions[sNum].on_connect([slave](tcp::resolver::iterator endpoint_it) {
-       syslog(LOG_INFO, "connection established with %s\n", slave->getAddr().c_str());
-    });
-    sessions[sNum].on_error([slave](const boost::system::error_code &ec) {
-       syslog(LOG_INFO, "connection error %s ec: %d\n", slave->getAddr().c_str(), ec.value());
-    });
-    ios.post([&sessions, sNum, slave]() {
-        if (slave->isRequestAvailable()) {
-           auto req = slave->getNextReq();
-           reqDispatcher(slave, req, sessions, sNum);
-        }
-    });
-    ios.run();
-}
+            sessions.push_back(session(ios, slave->getAddr(), slave->getPort()));
+            sessions[sNum].on_connect([slave](tcp::resolver::iterator endpoint_it) {
+                    syslog(LOG_INFO, "connection established with %s\n", slave->getAddr().c_str());
+                    });
+            sessions[sNum].on_error([slave](const boost::system::error_code &ec) {
+                    syslog(LOG_INFO, "connection error %s ec: %d\n", slave->getAddr().c_str(), ec.value());
+                    });
+#if 0
+            ios.post([&sessions, sNum, slave]() {
+                    cout << "post handler" << endl;
+                    if (slave->isRequestAvailable()) {
+                    auto req = slave->getNextReq();
+                    reqDispatcher(slave, req, sessions, sNum);
+                    }
+                    });
+#endif
+            ios.run();
+            cout << "exiting from io service " << endl;
+    }
+    void post(shared_ptr<ProxySlave> slave, 
+              vector<session> & sessions, int sNum, int clientReqNum)
+    {
+            ios.post([&sessions, sNum, slave, clientReqNum]() {
+                 cout << "post handler" << endl;
+                 reqDispatcher(slave, clientReqNum, sessions, sNum);
+            });
+    }
+private: 
+   boost::asio::io_service ios;
+};
 
 void ResRouterTask(RequestMap & reqMap, Queue<int> & resQ)
 {
@@ -130,20 +150,20 @@ void ResRouterTask(RequestMap & reqMap, Queue<int> & resQ)
     }
 }
 
-void reqDispatcher(shared_ptr<ProxySlave> slave, shared_ptr<SlaveRequest> slaveReq, 
+void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
                    vector<session> & sessions, int sNum)
 {
     header_map h;
     char buf[16] = {0};
     /* wrap the client request into header */
-    snprintf(buf, sizeof(buf), "%d", slaveReq->clientReqNum);
+    snprintf(buf, sizeof(buf), "%d", clientReqNum);
     struct header_value hv = {buf, true};
     h.insert(make_pair("reqnum", hv));
     /* actual call to slave */
     syslog(LOG_INFO, "Sending request to slave: %s\n", slave->getAddr().c_str());
     boost::system::error_code ec;
-    auto req = sessions[sNum].submit(ec, slaveReq->method, slaveReq->uri, h);
-//    sessions[sNum].io_service().post([req, slave]() {
+    auto req = sessions[sNum].submit(ec, "GET", slaveAddrArray[sNum].uri, h);
+    //sessions[sNum].io_service().post([req, slave]() {
     req->on_response([slave](const response & res) {
             auto search = res.header().find("reqnum");
             assert(search != res.header().end());
@@ -162,7 +182,7 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, shared_ptr<SlaveRequest> slaveR
                 }
             });
      });
-  //  });
+   // });
 }
 
 void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
@@ -170,6 +190,7 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
     vector<shared_ptr<ProxySlave>> slaves;
     vector<session> sessions;
     RequestMap reqMap;
+    vector<shared_ptr<SlaveIOTask>> iotasks;
 //    Queue<SlaveResponse> resQ;
     Queue<int> resQ;
 
@@ -189,8 +210,9 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
     th.detach();
     /* create N slave IO tasks */
     for (int num = 0; num < numSlaves; ++num) {
-        auto th = std::thread([&slaves, num, &sessions]() {
-            SlaveIOTask(num, slaves[num], sessions);
+        auto th = std::thread([&slaves, num, &sessions, &iotasks]() {
+            iotasks.push_back(make_shared<SlaveIOTask> ());
+            iotasks[num]->run(slaves[num], sessions, num);
         });
         th.detach();
     }
@@ -205,8 +227,8 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
         reqMap.put(clientReqNum, identity);
 
         for (int num = 0; num < numSlaves; ++num) {
-            shared_ptr<SlaveRequest>  sReq = make_shared<SlaveRequest> (clientReqNum, "GET", slaveAddrArray[num].uri, "ActualRequest");
-            slaves[num]->putReq(sReq);
+//            shared_ptr<SlaveRequest>  sReq = make_shared<SlaveRequest> (clientReqNum, "GET", slaveAddrArray[num].uri, "ActualRequest");
+            iotasks[num]->post(slaves[num], sessions, num, clientReqNum);
         }
     }
 }
