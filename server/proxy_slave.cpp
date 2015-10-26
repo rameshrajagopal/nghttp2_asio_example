@@ -128,7 +128,6 @@ public:
               vector<session> & sessions, int sNum, int clientReqNum)
     {
             ios.post([&sessions, sNum, slave, clientReqNum]() {
-                 cout << "post handler" << endl;
                  reqDispatcher(slave, clientReqNum, sessions, sNum);
             });
     }
