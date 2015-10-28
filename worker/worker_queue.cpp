@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
     http2 server;
     string slaveAddr;
     string slavePort;
+    std::atomic<int> reqNum {0};
 
     openlog(NULL, 0, LOG_USER);
     if (argc == 3) {
@@ -44,8 +45,9 @@ int main(int argc, char *argv[]) {
         });
         th.detach();
     }
-    server.handle("/work", [&q](const request & req, const response & res) {
-        cout << "received req " << endl;
+    server.handle("/work", [&q, &reqNum](const request & req, const response & res) {	
+        int cnt = reqNum++;
+        cout << "reqNum " << reqNum << endl;
 #if 0
         for (auto &kv : req.header()) {
            cout << kv.first << ":" << kv.second.value << endl;
