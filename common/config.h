@@ -1,7 +1,7 @@
 #ifndef _NGHTTP_CONFIG_H_INCLUDED_
 #define _NGHTTP_CONFIG_H_INCLUDED_
 
-#define  MASTER_NODE_ADDR  "192.168.0.241"
+#define  MASTER_NODE_ADDR  "192.168.0.12"
 #define  MASTER_NODE_PORT  "8000"
 #define  SEMICOLON         ":"
 #define  SLASH             "/"
