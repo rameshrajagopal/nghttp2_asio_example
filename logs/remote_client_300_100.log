@@ -1,0 +1,401 @@
+min req: 0:99 value 151496 msec
+max req: 0:1 value 170593 msec
+total time: 16115661 total requests: 100
+avg time: 161156
+min req: 1:99 value 157891 msec
+max req: 1:0 value 176592 msec
+total time: 16741404 total requests: 100
+avg time: 167414
+min req: 2:99 value 105120 msec
+max req: 2:0 value 122713 msec
+total time: 11443685 total requests: 100
+avg time: 114436
+min req: 3:99 value 175432 msec
+max req: 3:0 value 194577 msec
+total time: 18479639 total requests: 100
+avg time: 184796
+min req: 4:99 value 131695 msec
+max req: 4:0 value 150548 msec
+total time: 14137218 total requests: 100
+avg time: 141372
+min req: 5:99 value 44073 msec
+max req: 5:0 value 59461 msec
+total time: 5133172 total requests: 100
+avg time: 51331
+min req: 6:99 value 132679 msec
+max req: 6:0 value 151551 msec
+total time: 14242421 total requests: 100
+avg time: 142424
+min req: 7:99 value 83645 msec
+max req: 7:0 value 101503 msec
+total time: 9238168 total requests: 100
+avg time: 92381
+min req: 8:99 value 53008 msec
+max req: 8:1 value 69505 msec
+total time: 6170674 total requests: 100
+avg time: 61706
+min req: 9:99 value 62605 msec
+max req: 9:0 value 77580 msec
+total time: 7061728 total requests: 100
+avg time: 70617
+min req: 10:99 value 50981 msec
+max req: 10:0 value 68456 msec
+total time: 5958107 total requests: 100
+avg time: 59581
+min req: 11:99 value 109331 msec
+max req: 11:0 value 127512 msec
+total time: 11840819 total requests: 100
+avg time: 118408
+min req: 12:99 value 93101 msec
+max req: 12:0 value 111082 msec
+total time: 10183757 total requests: 100
+avg time: 101837
+min req: 13:99 value 105190 msec
+max req: 13:0 value 122522 msec
+total time: 11403333 total requests: 100
+avg time: 114033
+min req: 14:99 value 185365 msec
+max req: 14:1 value 205593 msec
+total time: 19524309 total requests: 100
+avg time: 195243
+min req: 15:99 value 122917 msec
+max req: 15:0 value 141552 msec
+total time: 13212688 total requests: 100
+avg time: 132126
+min req: 16:99 value 195811 msec
+max req: 16:0 value 216591 msec
+total time: 20638811 total requests: 100
+avg time: 206388
+min req: 17:99 value 91432 msec
+max req: 17:0 value 109505 msec
+total time: 10059343 total requests: 100
+avg time: 100593
+min req: 18:99 value 32549 msec
+max req: 18:0 value 48735 msec
+total time: 4118706 total requests: 100
+avg time: 41187
+min req: 19:99 value 2855 msec
+max req: 19:0 value 18388 msec
+total time: 1086371 total requests: 100
+avg time: 10863
+min req: 20:99 value 192314 msec
+max req: 20:0 value 212572 msec
+total time: 20204649 total requests: 100
+avg time: 202046
+min req: 21:99 value 182715 msec
+max req: 21:0 value 202569 msec
+total time: 19298241 total requests: 100
+avg time: 192982
+min req: 22:99 value 113905 msec
+max req: 22:0 value 132507 msec
+total time: 12304038 total requests: 100
+avg time: 123040
+min req: 23:99 value 130837 msec
+max req: 23:0 value 149530 msec
+total time: 13975572 total requests: 100
+avg time: 139755
+min req: 24:99 value 207538 msec
+max req: 24:0 value 228605 msec
+total time: 21797853 total requests: 100
+avg time: 217978
+min req: 25:99 value 180775 msec
+max req: 25:0 value 200589 msec
+total time: 19059697 total requests: 100
+avg time: 190596
+min req: 26:99 value 162169 msec
+max req: 26:0 value 181543 msec
+total time: 17161879 total requests: 100
+avg time: 171618
+min req: 27:99 value 164057 msec
+max req: 27:0 value 183035 msec
+total time: 17393917 total requests: 100
+avg time: 173939
+min req: 28:99 value 198143 msec
+max req: 28:0 value 217581 msec
+total time: 20857693 total requests: 100
+avg time: 208576
+min req: 29:99 value 120850 msec
+max req: 29:0 value 138498 msec
+total time: 12991318 total requests: 100
+avg time: 129913
+min req: 30:99 value 76746 msec
+max req: 30:0 value 94515 msec
+total time: 8583782 total requests: 100
+avg time: 85837
+min req: 31:99 value 163620 msec
+max req: 31:0 value 182538 msec
+total time: 17280627 total requests: 100
+avg time: 172806
+min req: 32:99 value 123852 msec
+max req: 32:0 value 142520 msec
+total time: 13284100 total requests: 100
+avg time: 132841
+min req: 33:99 value 78753 msec
+max req: 33:0 value 96497 msec
+total time: 8826916 total requests: 100
+avg time: 88269
+min req: 34:99 value 137766 msec
+max req: 34:0 value 156507 msec
+total time: 14701435 total requests: 100
+avg time: 147014
+min req: 35:99 value 166408 msec
+max req: 35:1 value 185531 msec
+total time: 17698693 total requests: 100
+avg time: 176986
+min req: 36:99 value 103246 msec
+max req: 36:1 value 121499 msec
+total time: 11258526 total requests: 100
+avg time: 112585
+min req: 37:99 value 139660 msec
+max req: 37:0 value 158510 msec
+total time: 14914235 total requests: 100
+avg time: 149142
+min req: 38:99 value 129687 msec
+max req: 38:0 value 148505 msec
+total time: 13959194 total requests: 100
+avg time: 139591
+min req: 39:99 value 148384 msec
+max req: 39:0 value 167535 msec
+total time: 15818955 total requests: 100
+avg time: 158189
+min req: 40:99 value 167971 msec
+max req: 40:0 value 187584 msec
+total time: 17752186 total requests: 100
+avg time: 177521
+min req: 41:99 value 191260 msec
+max req: 41:0 value 211551 msec
+total time: 20157492 total requests: 100
+avg time: 201574
+min req: 42:99 value 128788 msec
+max req: 42:0 value 147527 msec
+total time: 13861168 total requests: 100
+avg time: 138611
+min req: 43:99 value 72702 msec
+max req: 43:0 value 90357 msec
+total time: 8151838 total requests: 100
+avg time: 81518
+min req: 44:99 value 213261 msec
+max req: 44:0 value 234583 msec
+total time: 22371906 total requests: 100
+avg time: 223719
+min req: 45:99 value 116093 msec
+max req: 45:0 value 134500 msec
+total time: 12448898 total requests: 100
+avg time: 124488
+min req: 46:99 value 116929 msec
+max req: 46:0 value 135488 msec
+total time: 12605800 total requests: 100
+avg time: 126058
+min req: 47:99 value 168879 msec
+max req: 47:0 value 188564 msec
+total time: 17869007 total requests: 100
+avg time: 178690
+min req: 48:99 value 169927 msec
+max req: 48:0 value 189555 msec
+total time: 17979480 total requests: 100
+avg time: 179794
+min req: 49:99 value 93603 msec
+max req: 49:0 value 110471 msec
+total time: 10135794 total requests: 100
+avg time: 101357
+min req: 50:99 value 153401 msec
+max req: 50:0 value 172543 msec
+total time: 16288111 total requests: 100
+avg time: 162881
+min req: 51:99 value 158368 msec
+max req: 51:0 value 177057 msec
+total time: 16819503 total requests: 100
+avg time: 168195
+min req: 52:99 value 143714 msec
+max req: 52:0 value 162521 msec
+total time: 15341678 total requests: 100
+avg time: 153416
+min req: 53:99 value 135745 msec
+max req: 53:0 value 154550 msec
+total time: 14476197 total requests: 100
+avg time: 144761
+min req: 54:99 value 181869 msec
+max req: 54:0 value 201560 msec
+total time: 19170698 total requests: 100
+avg time: 191706
+min req: 55:99 value 90543 msec
+max req: 55:0 value 108475 msec
+total time: 9928112 total requests: 100
+avg time: 99281
+min req: 56:99 value 160137 msec
+max req: 56:0 value 179547 msec
+total time: 17044342 total requests: 100
+avg time: 170443
+min req: 57:99 value 187625 msec
+max req: 57:0 value 207567 msec
+total time: 19802854 total requests: 100
+avg time: 198028
+min req: 58:99 value 190399 msec
+max req: 58:0 value 210576 msec
+total time: 20014865 total requests: 100
+avg time: 200148
+min req: 59:99 value 144553 msec
+max req: 59:0 value 163517 msec
+total time: 15418378 total requests: 100
+avg time: 154183
+min req: 60:99 value 176853 msec
+max req: 60:0 value 196055 msec
+total time: 18596036 total requests: 100
+avg time: 185960
+min req: 61:99 value 98494 msec
+max req: 61:0 value 116561 msec
+total time: 10747555 total requests: 100
+avg time: 107475
+min req: 62:99 value 9384 msec
+max req: 62:0 value 25453 msec
+total time: 1739379 total requests: 100
+avg time: 17393
+min req: 63:99 value 199037 msec
+max req: 63:1 value 219258 msec
+total time: 20987042 total requests: 100
+avg time: 209870
+min req: 64:99 value 67953 msec
+max req: 64:0 value 85486 msec
+total time: 7696009 total requests: 100
+avg time: 76960
+min req: 65:99 value 73821 msec
+max req: 65:0 value 91483 msec
+total time: 8263452 total requests: 100
+avg time: 82634
+min req: 66:99 value 114835 msec
+max req: 66:0 value 133485 msec
+total time: 12438063 total requests: 100
+avg time: 124380
+min req: 67:99 value 85610 msec
+max req: 67:0 value 103489 msec
+total time: 9473157 total requests: 100
+avg time: 94731
+min req: 68:99 value 41050 msec
+max req: 68:1 value 58433 msec
+total time: 4929191 total requests: 100
+avg time: 49291
+min req: 69:99 value 57161 msec
+max req: 69:1 value 74478 msec
+total time: 6598656 total requests: 100
+avg time: 65986
+min req: 70:99 value 82750 msec
+max req: 70:1 value 100454 msec
+total time: 9121204 total requests: 100
+avg time: 91212
+min req: 71:99 value 154446 msec
+max req: 71:0 value 173577 msec
+total time: 16427055 total requests: 100
+avg time: 164270
+min req: 72:99 value 147443 msec
+max req: 72:0 value 166529 msec
+total time: 15718935 total requests: 100
+avg time: 157189
+min req: 73:99 value 33452 msec
+max req: 73:1 value 50409 msec
+total time: 4241148 total requests: 100
+avg time: 42411
+min req: 74:99 value 62978 msec
+max req: 74:0 value 78565 msec
+total time: 7142112 total requests: 100
+avg time: 71421
+min req: 75:99 value 27884 msec
+max req: 75:1 value 44489 msec
+total time: 3666084 total requests: 100
+avg time: 36660
+min req: 76:99 value 184673 msec
+max req: 76:0 value 204566 msec
+total time: 19509950 total requests: 100
+avg time: 195099
+min req: 77:99 value 48220 msec
+max req: 77:0 value 65445 msec
+total time: 5723249 total requests: 100
+avg time: 57232
+min req: 78:99 value 99437 msec
+max req: 78:0 value 117474 msec
+total time: 10882610 total requests: 100
+avg time: 108826
+min req: 79:99 value 107087 msec
+max req: 79:1 value 125359 msec
+total time: 11608722 total requests: 100
+avg time: 116087
+min req: 80:99 value 140726 msec
+max req: 80:0 value 159525 msec
+total time: 15040459 total requests: 100
+avg time: 150404
+min req: 81:99 value 97341 msec
+max req: 81:0 value 113991 msec
+total time: 10535653 total requests: 100
+avg time: 105356
+min req: 82:99 value 176602 msec
+max req: 82:0 value 195084 msec
+total time: 18565855 total requests: 100
+avg time: 185658
+min req: 83:99 value 75952 msec
+max req: 83:0 value 93487 msec
+total time: 8499490 total requests: 100
+avg time: 84994
+min req: 84:99 value 159156 msec
+max req: 84:0 value 178540 msec
+total time: 16844237 total requests: 100
+avg time: 168442
+min req: 85:99 value 113151 msec
+max req: 85:0 value 131474 msec
+total time: 12254522 total requests: 100
+avg time: 122545
+min req: 86:99 value 136726 msec
+max req: 86:0 value 155518 msec
+total time: 14655665 total requests: 100
+avg time: 146556
+min req: 87:99 value 149305 msec
+max req: 87:0 value 168535 msec
+total time: 16003842 total requests: 100
+avg time: 160038
+min req: 88:99 value 80704 msec
+max req: 88:0 value 98447 msec
+total time: 8992004 total requests: 100
+avg time: 89920
+min req: 89:99 value 155428 msec
+max req: 89:0 value 174745 msec
+total time: 16537345 total requests: 100
+avg time: 165373
+min req: 90:99 value 179627 msec
+max req: 90:0 value 199557 msec
+total time: 18957300 total requests: 100
+avg time: 189573
+min req: 91:99 value 64794 msec
+max req: 91:0 value 82447 msec
+total time: 7408069 total requests: 100
+avg time: 74080
+min req: 92:99 value 173914 msec
+max req: 92:0 value 192550 msec
+total time: 18374229 total requests: 100
+avg time: 183742
+min req: 93:99 value 150311 msec
+max req: 93:0 value 169523 msec
+total time: 16019639 total requests: 100
+avg time: 160196
+min req: 94:99 value 166969 msec
+max req: 94:0 value 186552 msec
+total time: 17737804 total requests: 100
+avg time: 177378
+min req: 95:99 value 87618 msec
+max req: 95:0 value 105479 msec
+total time: 9673167 total requests: 100
+avg time: 96731
+min req: 96:99 value 141392 msec
+max req: 96:0 value 160518 msec
+total time: 15125532 total requests: 100
+avg time: 151255
+min req: 97:99 value 95874 msec
+max req: 97:0 value 113489 msec
+total time: 10479360 total requests: 100
+avg time: 104793
+min req: 98:99 value 188450 msec
+max req: 98:0 value 208565 msec
+total time: 19883578 total requests: 100
+avg time: 198835
+min req: 99:99 value 134689 msec
+max req: 99:0 value 152514 msec
+total time: 14310403 total requests: 100
+avg time: 143104
+ramesh@debian:~/explore/nghttp2/examples/nghttp2_asio_example/client$ 
