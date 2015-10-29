@@ -9,6 +9,7 @@
 #define  PROTOCOL          "http://"
 #define  MASTER_NODE_URI   PROTOCOL MASTER_PORT
 #define  WORKER_FILE       "/work"
+#define within(num) (int) ((float) num * random() / (RAND_MAX + 1.0))
 
 #define MAX_NUM_SLAVES  (3)
 typedef struct {
@@ -17,8 +18,8 @@ typedef struct {
     std::string uri;
 }SlaveAddr;
 
-#define SLAVE_ADDR  "192.168.0.241"
+#define SLAVE_ADDR  "192.168.0.12"
 #define SLAVE_PORT  "7000"
-#define SLAVE1_ADDR "192.168.0.203"
+#define SLAVE1_ADDR "192.168.0.241"
 
 #endif /*_NGHTTP_CONFIG_H_INCLUDED_*/

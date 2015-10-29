@@ -36,10 +36,11 @@ int main(int argc, char *argv[]) {
     syslog(LOG_INFO, "worker started with %d threads\n", MAX_NUM_WORKER_THREADS);
     for (int num = 0; num < MAX_NUM_WORKER_THREADS; ++num) {
         auto th = std::thread([&q]() {
+            srandom((unsigned) time(NULL));
             for (;;) {
                 auto st = q.pop();
                 /* do actual work */
-                usleep(100 * 1000);
+                usleep(within(200 * 1000));
                 st->commit_result();
             }
         });

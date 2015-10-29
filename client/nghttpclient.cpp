@@ -19,7 +19,6 @@ using namespace nghttp2::asio_http2::client;
 #define  SYSLOG(fmt...) 
 #endif
 
-#define within(num) (int) ((float) num * random() / (RAND_MAX + 1.0))
 
 struct timeval getDiffTime(struct timeval tstart, struct timeval tend)
 {
@@ -33,7 +32,6 @@ struct timeval getDiffTime(struct timeval tstart, struct timeval tend)
         tdiff.tv_usec = tend.tv_usec - tstart.tv_usec;
     }
     return tdiff;
-    //int total_msec = (tdiff.tv_sec * 1000) + (tdiff.tv_usec/1000);
 }
 
 void printStats(map<string, struct timeval> & reqMap)
@@ -41,27 +39,31 @@ void printStats(map<string, struct timeval> & reqMap)
     int min_value = INT_MAX, max_value = 0;
     string min_req, max_req;
     int avg = 0, total = 0, num_requests = 0;
-    int total_msec = 0;
+    uint64_t total_msec = 0;
+    int nerrors = 0;
 
     auto it = reqMap.begin();
     for (; it != reqMap.end(); ++it) {
-//        syslog(LOG_INFO, "%s:  %ld %d\n", it->first, it->second.tv_sec, it->second.tv_usec);
         total_msec = (it->second.tv_sec * 1000) + (it->second.tv_usec/1000);
-        total += total_msec; 
-        ++num_requests;
-        if (total_msec < min_value) {
-            min_value = total_msec;
-            min_req = it->first;
-        }
-        if (total_msec > max_value) {
-            max_value = total_msec;
-            max_req = it->first;
+        if (total_msec == 0) ++nerrors;
+        else {
+            total += total_msec; 
+            ++num_requests;
+            if (total_msec < min_value) {
+                min_value = total_msec;
+                min_req = it->first;
+            }
+            if (total_msec > max_value) {
+                max_value = total_msec;
+                max_req = it->first;
+            }
         }
     }
     cout << "min req: " << min_req << " value " << min_value << " msec" << endl;
     cout << "max req: " << max_req << " value " << max_value << " msec" << endl;
     cout << "total time: " << total << " total requests: " << num_requests << endl;
     cout << "avg time: " << (total/num_requests) << endl;
+    cout << "total errors: " << nerrors << endl;
 }
 
 void clientTask(int clientNum, int max_requests, 
