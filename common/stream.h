@@ -24,7 +24,7 @@ void writeClientRequestNum(const request & req, header_map & h)
 {
     auto search = req.header().find("clientreq");
     if (search != req.header().end()) {
-        cout << search->second.value << endl;
+    //    cout << search->second.value << endl;
         h.insert(std::make_pair(search->first, search->second));
     }
 }

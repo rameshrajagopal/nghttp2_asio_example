@@ -16,7 +16,7 @@ using namespace nghttp2::asio_http2::client;
 #ifdef ENABLE_SYSLOG
 #define  SYSLOG(fmt...) syslog(fmt)
 #else
-#define  SYSLOG(fmt...) 
+#define  SYSLOG(fmt...) syslog(fmt)
 #endif
 
 
@@ -74,7 +74,7 @@ void clientTask(int clientNum, int max_requests,
     boost::system::error_code ec;
     boost::asio::io_service io_service;
 
-    SYSLOG(LOG_INFO, "client task: %d", clientNum);
+    SYSLOG(LOG_INFO, "client task: %d connecting with: %s:%s", clientNum, master_addr.c_str(), master_port.c_str());
     session sess(io_service, master_addr, master_port);
     map<string, int> clientMap;
     sess.on_connect([&sess, clientNum, max_requests, &clientMap, &reqMap](tcp::resolver::iterator endpoint_it) {
@@ -152,22 +152,17 @@ int main(int argc, char *argv[])
     int max_threads, max_requests;
     string master_addr, master_port;
 
+    if (argc != 5) {
+        cout << "usage: " << endl;
+        cout << argv[0] << "  masterip port concurrent repeat" << endl;
+        return -1;
+    }
     openlog(NULL, 0, LOG_USER);
     SYSLOG(LOG_INFO, "client started...");
-    if (argc == 5) {
-        master_addr = argv[3];
-        master_port = argv[4];
-    } else {
-        master_addr = MASTER_NODE_ADDR;
-        master_port = MASTER_NODE_PORT;
-    }
-    if (argc >= 3) {
-       max_threads = atoi(argv[1]);    
-       max_requests = atoi(argv[2]);
-    } else {
-       max_threads = MAX_NUM_CLIENTS;
-       max_requests = MAX_NUM_REQUESTS;
-    }
+    master_addr = argv[1];
+    master_port = argv[2];
+    max_threads = atoi(argv[3]);    
+    max_requests = atoi(argv[4]);
     std::map<string, struct timeval> reqMaps[max_threads];
     for (int num = 0; num < max_threads; ++num) {
         auto th = std::thread([num, max_requests, master_addr, master_port, &reqMaps]() { 

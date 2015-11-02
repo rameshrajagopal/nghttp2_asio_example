@@ -30,43 +30,25 @@ struct SlaveRequest
     string request;
 };
 
-#if 0
-struct SlaveResponse
-{
-    SlaveResponse(int clientReqNum,  int responseLen)
-    {
-       cout << "SlaveResponse: " << clientReqNum << " " << responseLen << endl;
-       clientReqNum = clientReqNum;
-       len = responseLen;
-       curPos = 0;
-       //res = new uint8_t[responseLen];
-    }
-    void responseData(const uint8_t * data, uint32_t len)
-    {
-       //memcpy(&res[curPos], data, len);//FIXME
-       curPos += len;
-    }
-    ~SlaveResponse() {
- //       delete res;
-    }
-    int clientReqNum;
-    uint32_t len;
-    uint32_t curPos;
-//    uint8_t * res;
-};
-#endif
-
 class ProxySlave {
 public:
     ProxySlave(const string & address, const string & portnum, int num, 
                Queue<int> & rq): 
-               addr(address), port(portnum), slaveNum(num), resQ(rq) 
+               addr(address), port(portnum), slaveNum(num), resQ(rq), status(false)
     {
         reqQ = make_shared<Queue<int>>();
     }
     
     const string & getAddr() { return addr; }
     const string & getPort() { return port; }
+
+    void setStatus(bool s) {
+        status = s;
+    }
+
+    bool getStatus(void) {
+        return status;
+    }
 
     int getNextReq() 
     {
@@ -84,6 +66,7 @@ public:
     {
         resQ.push(reqNum);
     }
+    std::map<int, int> slaveReqMap;
 private:
     int   slaveNum;
     const string & addr;
@@ -91,6 +74,7 @@ private:
 //    Queue<shared_ptr<SlaveRequest>> reqQ;
     shared_ptr<Queue<int>>  reqQ;
     Queue<int> & resQ;
+    bool status;
 };
 
 extern int getRequestNum(shared_ptr<Stream> st);
@@ -108,21 +92,23 @@ public:
             sessions.push_back(session(ios, slave->getAddr(), slave->getPort()));
             sessions[sNum].on_connect([slave](tcp::resolver::iterator endpoint_it) {
                     syslog(LOG_INFO, "connection established with %s\n", slave->getAddr().c_str());
+                    slave->setStatus(true);
                     });
             sessions[sNum].on_error([slave](const boost::system::error_code &ec) {
                     syslog(LOG_INFO, "connection error %s ec: %d\n", slave->getAddr().c_str(), ec.value());
+                    slave->setStatus(false);
                     });
-#if 0
-            ios.post([&sessions, sNum, slave]() {
-                    cout << "post handler" << endl;
-                    if (slave->isRequestAvailable()) {
-                    auto req = slave->getNextReq();
-                    reqDispatcher(slave, req, sessions, sNum);
-                    }
-                    });
-#endif
             ios.run();
-            cout << "exiting from io service " << endl;
+            cout << "slave " << sNum << " went down " << endl;
+            slave->setStatus(false);
+            auto it = slave->slaveReqMap.begin();
+            int pending_requests = 0;
+            for (; it != slave->slaveReqMap.end(); ++it) {
+                slave->putRes(it->first);
+                ++pending_requests;
+            }
+            cout << "pending requests " << pending_requests << endl;
+            slave->slaveReqMap.clear();
     }
     void post(shared_ptr<ProxySlave> slave, 
               vector<session> & sessions, int sNum, int clientReqNum)
@@ -161,8 +147,8 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
     /* actual call to slave */
     syslog(LOG_INFO, "Sending request to slave: %s\n", slave->getAddr().c_str());
     boost::system::error_code ec;
+    slave->slaveReqMap[clientReqNum] = clientReqNum;
     auto req = sessions[sNum].submit(ec, "GET", slaveAddrArray[sNum].uri, h);
-    //sessions[sNum].io_service().post([req, slave]() {
     req->on_response([slave](const response & res) {
             auto search = res.header().find("reqnum");
             assert(search != res.header().end());
@@ -181,7 +167,10 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
                 }
             });
      });
-   // });
+     req->on_close([slave, clientReqNum](uint32_t status){
+          syslog(LOG_INFO, "req close event: %d\n", clientReqNum);
+          slave->slaveReqMap.erase(clientReqNum);
+     });
 }
 
 void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
@@ -218,17 +207,20 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
     while (true) {
         // pop the st from queue, if possible put the reqNum as part of stream
         auto st = q.pop();
+        int numReplies = 0;
         // decide to whom u need to send the route the requests 
-        struct RequestIdentity identity = {numSlaves, 0, st};
+        struct RequestIdentity identity = {numReplies, 0, st};
         // using st, get the reqNum
-        // using the referenceNum store the st into requestMap
         int clientReqNum = getRequestNum(st);
-        reqMap.put(clientReqNum, identity);
-
+        // using the referenceNum store the st into requestMap
         for (int num = 0; num < numSlaves; ++num) {
-//            shared_ptr<SlaveRequest>  sReq = make_shared<SlaveRequest> (clientReqNum, "GET", slaveAddrArray[num].uri, "ActualRequest");
-            iotasks[num]->post(slaves[num], sessions, num, clientReqNum);
+            if (slaves[num]->getStatus()) {
+                iotasks[num]->post(slaves[num], sessions, num, clientReqNum);
+                ++numReplies;
+            }
         }
+        identity.cnt = numReplies;
+        reqMap.put(clientReqNum, identity);
     }
 }
 

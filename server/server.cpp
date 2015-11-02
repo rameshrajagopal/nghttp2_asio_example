@@ -49,11 +49,6 @@ int main(int argc, char *argv[]) {
     th.detach();
     server.handle("/", [&q, &reqNum](const request & req, const response & res) {
         int cnt = reqNum++;
-#if 0
-        for (auto &kv: req.header()) {
-            cout << kv.first << " " << kv.second.value << endl;
-        }
-#endif
         auto & io_service = res.io_service();
         auto st = std::make_shared<Stream>(req, res, io_service, cnt);
         res.on_close([st](uint32_t error_code) {
