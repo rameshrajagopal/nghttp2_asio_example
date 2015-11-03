@@ -1,0 +1,8 @@
+Run1
+
+Total requests 10000
+min val: 368
+max val: 99793
+total time: 5107179
+total errors: 0
+

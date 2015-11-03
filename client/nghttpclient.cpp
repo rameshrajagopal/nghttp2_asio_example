@@ -26,7 +26,7 @@ struct timeval getDiffTime(struct timeval tstart, struct timeval tend)
 
     if (tend.tv_usec < tstart.tv_usec) {
         tdiff.tv_sec = tend.tv_sec - tstart.tv_sec - 1;
-        tdiff.tv_usec = 1000000 + tend.tv_usec - tstart.tv_usec;
+        tdiff.tv_usec = (1000000 - tstart.tv_usec) + tend.tv_usec;
     } else {
         tdiff.tv_sec = tend.tv_sec - tstart.tv_sec;
         tdiff.tv_usec = tend.tv_usec - tstart.tv_usec;
@@ -34,12 +34,19 @@ struct timeval getDiffTime(struct timeval tstart, struct timeval tend)
     return tdiff;
 }
 
-void printStats(map<string, struct timeval> & reqMap)
+typedef struct {
+   int min_value;
+   int max_value;
+   int failures;
+   int64_t total_time;
+}timing_t;
+
+void printStats(map<string, struct timeval> & reqMap, timing_t & time)
 {
     int min_value = INT_MAX, max_value = 0;
     string min_req, max_req;
     int avg = 0, total = 0, num_requests = 0;
-    uint64_t total_msec = 0;
+    int64_t total_msec = 0;
     int nerrors = 0;
 
     auto it = reqMap.begin();
@@ -59,11 +66,14 @@ void printStats(map<string, struct timeval> & reqMap)
             }
         }
     }
-    cout << "min req: " << min_req << " value " << min_value << " msec" << endl;
-    cout << "max req: " << max_req << " value " << max_value << " msec" << endl;
-    cout << "total time: " << total << " total requests: " << num_requests << endl;
-    cout << "avg time: " << (total/num_requests) << endl;
-    cout << "total errors: " << nerrors << endl;
+    time.total_time += total_msec;
+    if (min_value < time.min_value) {
+        time.min_value = min_value;
+    }
+    if (max_value > time.max_value) {
+        time.max_value = max_value;
+    }
+    time.failures += nerrors;
 }
 
 void clientTask(int clientNum, int max_requests, 
@@ -136,7 +146,7 @@ void clientTask(int clientNum, int max_requests,
                     sess.shutdown();
                 }
                 });
-             usleep(within(400 * 1000));//400 msec
+//             usleep(within(400 * 1000));//400 msec
             }
     });
 
@@ -171,9 +181,19 @@ int main(int argc, char *argv[])
         th.detach();
     }
     getchar();
+    timing_t time;
+    time.min_value = INT_MAX;
+    time.max_value = INT_MIN;
+    time.failures = 0;
+    time.total_time = 0;
     for (int num = 0; num < max_threads; ++num) {
-       printStats(reqMaps[num]);
+       printStats(reqMaps[num], time);
     }
+    cout << "Total requests " << max_requests * max_threads << endl;
+    cout << "min val: " << time.min_value << endl;
+    cout << "max val: " << time.max_value << endl;
+    cout << "total time: " << time.total_time << endl;
+    cout << "total errors: " << time.failures << endl;
     closelog();
     return 0;
 }
