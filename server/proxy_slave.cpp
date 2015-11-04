@@ -43,6 +43,9 @@ public:
     const string & getAddr() { return addr; }
     const string & getPort() { return port; }
 
+    int getTaskNum(void) { return ioTaskNum; }
+    void setTaskNum(int num) { ioTaskNum = num; }
+
     void setStatus(bool s) {
         status = s;
     }
@@ -70,9 +73,9 @@ public:
     std::map<int, int> slaveReqMap;
 private:
     int   slaveNum;
+    int   ioTaskNum;
     const string & addr;
     const string & port;
-//    Queue<shared_ptr<SlaveRequest>> reqQ;
     shared_ptr<Queue<int>>  reqQ;
     Queue<int> & resQ;
     bool status;
@@ -85,12 +88,21 @@ static void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
 
 class SlaveIOTask {
 public:
-    SlaveIOTask() {}
-    void run(shared_ptr<ProxySlave> slave, vector<session> & sessions, int sNum)
+    SlaveIOTask(std::mutex & m, int sNum): vMutex(m), taskNum(sNum) {}
+
+    void setTaskNum(int sNum) {
+        taskNum = sNum;
+    }
+    void run(shared_ptr<ProxySlave> slave, vector<session> & sessions)
     {
             boost::system::error_code ec;
+            int sNum = 0;
 
+            std::unique_lock<std::mutex> mlock(vMutex);
             sessions.push_back(session(ios, slave->getAddr(), slave->getPort()));
+            sNum = sessions.size()-1;
+            mlock.unlock();
+            this->setTaskNum(sNum);
             sessions[sNum].on_connect([slave](tcp::resolver::iterator endpoint_it) {
                     syslog(LOG_INFO, "connection established with %s\n", slave->getAddr().c_str());
                     slave->setStatus(true);
@@ -112,14 +124,16 @@ public:
             slave->slaveReqMap.clear();
     }
     void post(shared_ptr<ProxySlave> slave, 
-              vector<session> & sessions, int sNum, int clientReqNum)
+              vector<session> & sessions, int clientReqNum)
     {
-            ios.post([&sessions, sNum, slave, clientReqNum]() {
-                 reqDispatcher(slave, clientReqNum, sessions, sNum);
+            ios.post([&sessions, slave, clientReqNum, this]() {
+                 reqDispatcher(slave, clientReqNum, sessions, taskNum);
             });
     }
 private: 
    boost::asio::io_service ios;
+   std::mutex & vMutex;
+   int taskNum;
 };
 
 void ResRouterTask(RequestMap & reqMap, Queue<int> & resQ)
@@ -219,10 +233,15 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, string configFile)
     });
     th.detach();
     /* create N slave IO tasks */
+    std::mutex vMutex;
     for (int num = 0; num < numSlaves; ++num) {
-        auto th = std::thread([&slaves, num, &sessions, &iotasks]() {
-            iotasks.push_back(make_shared<SlaveIOTask> ());
-            iotasks[num]->run(slaves[num], sessions, num);
+        auto th = std::thread([&slaves, num, &sessions, &iotasks, &vMutex]() {
+            std::unique_lock<std::mutex> mlock(vMutex);
+            iotasks.push_back(make_shared<SlaveIOTask> (vMutex, num));
+            int tasknum = iotasks.size()-1;
+            slaves[num]->setTaskNum(tasknum);
+            mlock.unlock();
+            iotasks[tasknum]->run(slaves[num], sessions);
         });
         th.detach();
     }
@@ -237,7 +256,7 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, string configFile)
         // using the referenceNum store the st into requestMap
         for (int num = 0; num < numSlaves; ++num) {
             if (slaves[num]->getStatus()) {
-                iotasks[num]->post(slaves[num], sessions, num, clientReqNum);
+                iotasks[slaves[num]->getTaskNum()]->post(slaves[num], sessions, clientReqNum);
                 ++numReplies;
             }
         }
