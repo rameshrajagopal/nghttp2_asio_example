@@ -154,8 +154,7 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
         *flags = NGHTTP2_DATA_FLAG_EOF;
         return REQUEST_SIZE;
     }; 
-    auto req = sessions[sNum].submit(ec, "POST", slaveAddrArray[sNum].uri, 
-                                    request_generator, h);
+    auto req = sessions[sNum].submit(ec, "POST", slaveAddrArray[sNum].uri, h);
     req->on_response([slave](const response & res) {
             auto search = res.header().find("reqnum");
             assert(search != res.header().end());
