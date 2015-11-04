@@ -22,14 +22,14 @@ int main(int argc, char *argv[]) {
     string slavePort;
     std::atomic<int> reqNum {0};
 
-    openlog(NULL, 0, LOG_USER);
-    if (argc == 3) {
-        slaveAddr = argv[1];
-        slavePort = argv[2];
-    } else {
-        slaveAddr = SLAVE_ADDR;
-        slavePort = SLAVE_PORT;
+    if (argc != 3) {
+        cout << "Usage: " << endl;
+        cout << argv[0] << " ip port " << endl;
+        return -1;
     }
+    openlog(NULL, 0, LOG_USER);
+    slaveAddr = argv[1];
+    slavePort = argv[2];
     server.num_threads(2);
     Queue<shared_ptr<Stream>> q;
 
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
             for (;;) {
                 auto st = q.pop();
                 /* do actual work */
-                usleep(within(200 * 1000));
+                usleep(100 * 1000);
                 st->commit_result();
             }
         });
@@ -67,7 +67,11 @@ int main(int argc, char *argv[]) {
         res.on_close([st](uint32_t error_code) {
             st->set_closed(true);
         });
-        q.push(st);
+        req.on_data([&q, st](const uint8_t * data, size_t len) {
+            if (len == 0) {
+               q.push(st); 
+            }
+        });
     });
 
     boost::system::error_code ec;

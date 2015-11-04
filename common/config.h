@@ -20,6 +20,6 @@ typedef struct {
 
 #define SLAVE_ADDR  "192.168.0.241"
 #define SLAVE_PORT  "7000"
-#define SLAVE1_ADDR "192.168.0.203"
+#define SLAVE1_ADDR "192.168.0.12"
 
 #endif /*_NGHTTP_CONFIG_H_INCLUDED_*/

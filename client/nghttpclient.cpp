@@ -10,6 +10,7 @@ using namespace std;
 using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::client;
 
+#define REQUEST_SIZE (1024)
 #define MAX_NUM_CLIENTS  (100)
 #define MAX_NUM_REQUESTS (1000)
 
@@ -22,50 +23,50 @@ using namespace nghttp2::asio_http2::client;
 
 struct timeval getDiffTime(struct timeval tstart, struct timeval tend)
 {
-    struct timeval tdiff;
+struct timeval tdiff;
 
-    if (tend.tv_usec < tstart.tv_usec) {
-        tdiff.tv_sec = tend.tv_sec - tstart.tv_sec - 1;
-        tdiff.tv_usec = (1000000 - tstart.tv_usec) + tend.tv_usec;
-    } else {
-        tdiff.tv_sec = tend.tv_sec - tstart.tv_sec;
-        tdiff.tv_usec = tend.tv_usec - tstart.tv_usec;
-    }
-    return tdiff;
+if (tend.tv_usec < tstart.tv_usec) {
+    tdiff.tv_sec = tend.tv_sec - tstart.tv_sec - 1;
+    tdiff.tv_usec = (1000000 - tstart.tv_usec) + tend.tv_usec;
+} else {
+    tdiff.tv_sec = tend.tv_sec - tstart.tv_sec;
+    tdiff.tv_usec = tend.tv_usec - tstart.tv_usec;
+}
+return tdiff;
 }
 
 typedef struct {
-   int min_value;
-   int max_value;
-   int failures;
-   int64_t total_time;
+int min_value;
+int max_value;
+int failures;
+int64_t total_time;
 }timing_t;
 
 void printStats(map<string, struct timeval> & reqMap, timing_t & time)
 {
-    int min_value = INT_MAX, max_value = 0;
-    string min_req, max_req;
-    int avg = 0, total = 0, num_requests = 0;
-    int64_t total_msec = 0;
-    int nerrors = 0;
+int min_value = INT_MAX, max_value = 0;
+string min_req, max_req;
+int avg = 0, total = 0, num_requests = 0;
+int64_t total_msec = 0;
+int nerrors = 0;
 
-    auto it = reqMap.begin();
-    for (; it != reqMap.end(); ++it) {
-        total_msec = (it->second.tv_sec * 1000) + (it->second.tv_usec/1000);
-        if (total_msec == 0) ++nerrors;
-        else {
-            total += total_msec; 
-            ++num_requests;
-            if (total_msec < min_value) {
-                min_value = total_msec;
-                min_req = it->first;
-            }
-            if (total_msec > max_value) {
-                max_value = total_msec;
-                max_req = it->first;
-            }
+auto it = reqMap.begin();
+for (; it != reqMap.end(); ++it) {
+    total_msec = (it->second.tv_sec * 1000) + (it->second.tv_usec/1000);
+    if (total_msec == 0) ++nerrors;
+    else {
+        total += total_msec; 
+        ++num_requests;
+        if (total_msec < min_value) {
+            min_value = total_msec;
+            min_req = it->first;
+        }
+        if (total_msec > max_value) {
+            max_value = total_msec;
+            max_req = it->first;
         }
     }
+}
     time.total_time += total_msec;
     if (min_value < time.min_value) {
         time.min_value = min_value;
@@ -128,7 +129,14 @@ void clientTask(int clientNum, int max_requests,
             gettimeofday(&curtime, NULL);
             SYSLOG(LOG_INFO, "request %s sec:%ld usec:%ld\n", buf, curtime.tv_sec, curtime.tv_usec);
             reqMap[buf] = curtime;
-            auto req = sess.submit(ec, "GET", MASTER_NODE_URI, h);
+            auto data_generator = []
+                   (uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
+                       memset(buf, 'a', REQUEST_SIZE);
+                       *flags = NGHTTP2_DATA_FLAG_EOF;
+                       return REQUEST_SIZE;
+            };
+
+            auto req = sess.submit(ec, "POST", MASTER_NODE_URI, data_generator,  h);
             req->on_response(printer);
             req->on_close([&sess, count, startPtr, clientNum](uint32_t error_code) {
                 if (--*count == 0) {

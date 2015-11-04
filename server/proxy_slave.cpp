@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <nghttp2/asio_http2_client.h>
 #include <thread>
 #include <syslog.h>
@@ -8,16 +10,14 @@
 #include <cassert>
 using boost::asio::ip::tcp;
 
+#define REQUEST_SIZE  (1024)
+
 using namespace std;
 using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::client;
 
-SlaveAddr slaveAddrArray[MAX_NUM_SLAVES] = {
-    /* let the preprocessor and compiler do the actual concat */
-    SLAVE_ADDR, SLAVE_PORT,  PROTOCOL SLAVE_ADDR SEMICOLON SLAVE_PORT WORKER_FILE, 
-    SLAVE1_ADDR, SLAVE_PORT, PROTOCOL SLAVE1_ADDR SEMICOLON SLAVE_PORT WORKER_FILE,
-    "127.0.0.1", "7000", "http://localhost:7000/work",
-};
+#define MAX_PRE_DEFINED_SLAVES (20)
+SlaveAddr slaveAddrArray[MAX_PRE_DEFINED_SLAVES];
 
 struct SlaveRequest
 {
@@ -36,6 +36,7 @@ public:
                Queue<int> & rq): 
                addr(address), port(portnum), slaveNum(num), resQ(rq), status(false)
     {
+        cout << address << " " << portnum << endl;
         reqQ = make_shared<Queue<int>>();
     }
     
@@ -148,7 +149,13 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
     syslog(LOG_INFO, "Sending request to slave: %s\n", slave->getAddr().c_str());
     boost::system::error_code ec;
     slave->slaveReqMap[clientReqNum] = clientReqNum;
-    auto req = sessions[sNum].submit(ec, "GET", slaveAddrArray[sNum].uri, h);
+    auto request_generator = [](uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
+        memset(buf, 'd', REQUEST_SIZE);
+        *flags = NGHTTP2_DATA_FLAG_EOF;
+        return REQUEST_SIZE;
+    }; 
+    auto req = sessions[sNum].submit(ec, "POST", slaveAddrArray[sNum].uri, 
+                                    request_generator, h);
     req->on_response([slave](const response & res) {
             auto search = res.header().find("reqnum");
             assert(search != res.header().end());
@@ -173,7 +180,23 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
      });
 }
 
-void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
+int parseConfigFile(const char * filename)
+{
+    ifstream is(filename);
+
+    string line;
+    int sNum = 0;
+    while (std::getline(is, line)) {
+        if (line[0] != '\n') {
+            stringstream ss(line);
+            ss >> slaveAddrArray[sNum].addr >> slaveAddrArray[sNum].port >> slaveAddrArray[sNum].uri;
+            ++sNum;
+        }
+    }
+    return sNum; 
+}
+
+void ReqRouterTask(Queue<shared_ptr<Stream>> & q, string configFile)
 {
     vector<shared_ptr<ProxySlave>> slaves;
     vector<session> sessions;
@@ -182,10 +205,10 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
 //    Queue<SlaveResponse> resQ;
     Queue<int> resQ;
 
+    int numSlaves = parseConfigFile(configFile.c_str());
+
+    cout << "started proxy slaves: " <<  numSlaves;
     syslog(LOG_INFO, "started proxy slaves: %d\n", numSlaves);
-    if (numSlaves > MAX_NUM_SLAVES) {
-        numSlaves = MAX_NUM_SLAVES;
-    }
     for (int num = 0; num < numSlaves; ++num) {
         auto slave = make_shared<ProxySlave> (
                              slaveAddrArray[num].addr, slaveAddrArray[num].port, num, resQ);
@@ -219,8 +242,12 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, int numSlaves)
                 ++numReplies;
             }
         }
-        identity.cnt = numReplies;
-        reqMap.put(clientReqNum, identity);
+        if (numReplies > 0) {
+            identity.cnt = numReplies;
+            reqMap.put(clientReqNum, identity);
+        } else {
+            sendResponse(st);
+        }
     }
 }
 
