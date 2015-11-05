@@ -36,7 +36,6 @@ public:
                Queue<int> & rq): 
                addr(address), port(portnum), slaveNum(num), resQ(rq), status(false)
     {
-        cout << address << " " << portnum << endl;
         reqQ = make_shared<Queue<int>>();
     }
     
@@ -82,7 +81,7 @@ private:
 };
 
 extern int getRequestNum(shared_ptr<Stream> st);
-extern void sendResponse(shared_ptr<Stream> st);
+extern void sendResponse(shared_ptr<Stream> st, bool randomness, int bytes, bool compression);
 static void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum, 
                    vector<session> & sessions, int sNum);
 
@@ -97,31 +96,37 @@ public:
     {
             boost::system::error_code ec;
             int sNum = 0;
+            auto connected = false;
 
             std::unique_lock<std::mutex> mlock(vMutex);
             sessions.push_back(session(ios, slave->getAddr(), slave->getPort()));
             sNum = sessions.size()-1;
             mlock.unlock();
             this->setTaskNum(sNum);
-            sessions[sNum].on_connect([slave](tcp::resolver::iterator endpoint_it) {
+            sessions[sNum].on_connect([slave, &connected](tcp::resolver::iterator endpoint_it) {
                     SYSLOG(LOG_INFO, "connection established with %s\n", slave->getAddr().c_str());
-                    slave->setStatus(true);
+                    connected = true;
+                    slave->setStatus(connected);
                     });
-            sessions[sNum].on_error([slave](const boost::system::error_code &ec) {
+            sessions[sNum].on_error([slave, &connected](const boost::system::error_code &ec) {
+                    cout << "connection error with " << slave->getAddr() << " " << ec.value() << endl;
                     SYSLOG(LOG_INFO, "connection error %s ec: %d\n", slave->getAddr().c_str(), ec.value());
-                    slave->setStatus(false);
+                    connected = false;
+                    slave->setStatus(connected);
                     });
             ios.run();
-            cout << "slave " << sNum << " went down " << endl;
-            slave->setStatus(false);
-            auto it = slave->slaveReqMap.begin();
-            int pending_requests = 0;
-            for (; it != slave->slaveReqMap.end(); ++it) {
-                slave->putRes(it->first);
-                ++pending_requests;
+            if (connected) {
+                cout << "slave " << sNum << " went down " << endl;
+                slave->setStatus(false);
+                auto it = slave->slaveReqMap.begin();
+                int pending_requests = 0;
+                for (; it != slave->slaveReqMap.end(); ++it) {
+                    slave->putRes(it->first);
+                    ++pending_requests;
+                }
+                cout << "pending requests " << pending_requests << endl;
+                slave->slaveReqMap.clear();
             }
-            cout << "pending requests " << pending_requests << endl;
-            slave->slaveReqMap.clear();
     }
     void post(shared_ptr<ProxySlave> slave, 
               vector<session> & sessions, int clientReqNum)
@@ -136,7 +141,7 @@ private:
    int taskNum;
 };
 
-void ResRouterTask(RequestMap & reqMap, Queue<int> & resQ)
+void ResRouterTask(RequestMap & reqMap, Queue<int> & resQ, ConfigFile & cfg)
 {
     while (true) {
         int clientReqNum = resQ.pop();
@@ -144,7 +149,10 @@ void ResRouterTask(RequestMap & reqMap, Queue<int> & resQ)
         SYSLOG(LOG_INFO, "ResRouterTask got response %d %d\n", clientReqNum, cnt);
         if (cnt == 0) {
             SYSLOG(LOG_INFO, "sending response to client reqNum: %d\n", clientReqNum);
-            sendResponse(reqMap.getStream(clientReqNum));
+            bool randomness = (cfg.getValueOfKey<string>("randomness") == "yes") ? true : false;
+            int  reply_bytes = cfg.getValueOfKey<int>("reply_bytes");
+            bool compression = (cfg.getValueOfKey<string>("compression") == "yes") ? true : false;
+            sendResponse(reqMap.getStream(clientReqNum), randomness, reply_bytes, compression);
         }
     }
 }
@@ -194,34 +202,23 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
      });
 }
 
-int parseConfigFile(const char * filename)
-{
-    ifstream is(filename);
-
-    string line;
-    int sNum = 0;
-    while (std::getline(is, line)) {
-        if (line[0] != '\n') {
-            stringstream ss(line);
-            ss >> slaveAddrArray[sNum].addr >> slaveAddrArray[sNum].port >> slaveAddrArray[sNum].uri;
-            ++sNum;
-        }
-    }
-    return sNum; 
-}
-
-void ReqRouterTask(Queue<shared_ptr<Stream>> & q, string configFile)
+void ReqRouterTask(Queue<shared_ptr<Stream>> & q, ConfigFile & cfg)
 {
     vector<shared_ptr<ProxySlave>> slaves;
     vector<session> sessions;
     RequestMap reqMap;
     vector<shared_ptr<SlaveIOTask>> iotasks;
-//    Queue<SlaveResponse> resQ;
     Queue<int> resQ;
 
-    int numSlaves = parseConfigFile(configFile.c_str());
-
-    cout << "started proxy slaves: " <<  numSlaves;
+    int numSlaves = cfg.getValueOfKey<int>("num_slaves", 0);
+    string slavePort = cfg.getValueOfKey<string>("slave_port");
+    for (int num = 0; num < numSlaves; ++num) {
+        string addr = cfg.getValueOfKey<string>("slave_addr" + to_string(num));
+        slaveAddrArray[num].addr = addr;
+        slaveAddrArray[num].port = slavePort;
+        slaveAddrArray[num].uri  = "http://" + addr + ":" + slavePort + "/work";
+    }
+    cout << "started proxy slaves: " <<  numSlaves << endl;
     SYSLOG(LOG_INFO, "started proxy slaves: %d\n", numSlaves);
     for (int num = 0; num < numSlaves; ++num) {
         auto slave = make_shared<ProxySlave> (
@@ -229,8 +226,8 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, string configFile)
         slaves.push_back(slave);
     }
     /* create Response Collector task */
-    auto th = std::thread([&reqMap, &resQ]() {
-        ResRouterTask(reqMap, resQ);
+    auto th = std::thread([&reqMap, &resQ, &cfg]() {
+        ResRouterTask(reqMap, resQ, cfg);
     });
     th.detach();
     /* create N slave IO tasks */
@@ -265,7 +262,10 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, string configFile)
             identity.cnt = numReplies;
             reqMap.put(clientReqNum, identity);
         } else {
-            sendResponse(st);
+            bool randomness = (cfg.getValueOfKey<string>("randomness") == "yes") ? true : false;
+            int  reply_bytes = cfg.getValueOfKey<int>("reply_bytes");
+            bool compression = (cfg.getValueOfKey<string>("compression") == "yes") ? true : false;
+            sendResponse(st, randomness, reply_bytes, compression);
         }
     }
 }

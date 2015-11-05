@@ -82,9 +82,9 @@ struct Stream : public std::enable_shared_from_this<Stream> {
             boost::asio::io_service &io_service, int rnum)
         : io_service(io_service), req(req), res(res), 
           closed(false), req_num(rnum) {}
-    void commit_result() {
+    void commit_result(int num_bytes, bool compression, bool randomness) {
         auto self = shared_from_this();
-        io_service.post([self]() {
+        io_service.post([self, num_bytes, compression, randomness]() {
             header_map h;
             std::lock_guard<std::mutex> lg(self->mu);
             if (self->closed) {
@@ -92,10 +92,11 @@ struct Stream : public std::enable_shared_from_this<Stream> {
             }
             writeRequestNum(self->req_num, h);
             writeClientRequestNum(self->req, h);
-            writeDatasize(within(16 * 1024), h);
-            enableCompression(h);
+            writeDatasize((randomness) ? within(num_bytes) : num_bytes, h);
+            if (compression) enableCompression(h);
             self->res.write_head(200, h);
-            self->res.end([](uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
+            self->res.end([num_bytes](uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
+                  len = num_bytes > len ? len : num_bytes;
                   memset(buf, 'c', len);
                   *flags = NGHTTP2_DATA_FLAG_EOF;
                   return len;

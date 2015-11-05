@@ -37,40 +37,42 @@ return tdiff;
 }
 
 typedef struct {
-int min_value;
-int max_value;
-int failures;
-int64_t total_time;
+    int min_value;
+    int max_value;
+    int failures;
+    int64_t total_time;
+    int total_requests;
 }timing_t;
 
 void printStats(map<string, struct timeval> & reqMap, timing_t & time)
 {
-int min_value = INT_MAX, max_value = 0;
-string min_req, max_req;
-int avg = 0, total = 0, num_requests = 0;
-int64_t total_msec = 0;
-int nerrors = 0;
+    int min_value = INT_MAX, max_value = 0;
+    string min_req, max_req;
+    int avg = 0, total = 0, num_requests = 0;
+    int64_t total_msec = 0;
+    int nerrors = 0;
 
-auto it = reqMap.begin();
-for (; it != reqMap.end(); ++it) {
-    total_msec = (it->second.tv_sec * 1000) + (it->second.tv_usec/1000);
-    if (total_msec == 0) ++nerrors;
-    else {
-        total += total_msec; 
-        ++num_requests;
-        if (total_msec < min_value) {
-            min_value = total_msec;
-            min_req = it->first;
-        }
-        if (total_msec > max_value) {
-            max_value = total_msec;
-            max_req = it->first;
+    auto it = reqMap.begin();
+    for (; it != reqMap.end(); ++it) {
+        total_msec = (it->second.tv_sec * 1000) + (it->second.tv_usec/1000);
+        ++time.total_requests;
+        if (total_msec == 0) ++nerrors;
+        else {
+            total += total_msec; 
+            ++num_requests;
+            if (total_msec < min_value) {
+                min_value = total_msec;
+                min_req = it->first;
+            }
+            if (total_msec > max_value) {
+                max_value = total_msec;
+                max_req = it->first;
+            }
         }
     }
-}
     time.total_time += total_msec;
     if (min_value < time.min_value) {
-        time.min_value = min_value;
+       time.min_value = min_value;
     }
     if (max_value > time.max_value) {
         time.max_value = max_value;
@@ -78,8 +80,7 @@ for (; it != reqMap.end(); ++it) {
     time.failures += nerrors;
 }
 
-void clientTask(int clientNum, int max_requests, 
-                string master_addr, string master_port,
+void clientTask(int clientNum, ConfigFile & cfg, 
                 map<string, struct timeval> & reqMap
                 )
 {
@@ -87,10 +88,12 @@ void clientTask(int clientNum, int max_requests,
     boost::asio::io_service io_service;
     std::mutex mutex_;
 
+    string master_addr = cfg.getValueOfKey<string>("masterip", "127.0.0.1");
+    string master_port = cfg.getValueOfKey<string>("masterport", "8000");
     SYSLOG(LOG_INFO, "client task: %d connecting with: %s:%s", clientNum, master_addr.c_str(), master_port.c_str());
     session sess(io_service, master_addr, master_port);
     map<string, int> clientMap;
-    sess.on_connect([&sess, clientNum, max_requests, &clientMap, &reqMap, &mutex_](tcp::resolver::iterator endpoint_it) {
+    sess.on_connect([&sess, clientNum, &cfg, &clientMap, &reqMap, &mutex_](tcp::resolver::iterator endpoint_it) {
             boost::system::error_code ec;
             auto printer = [&clientMap, &reqMap](const response &res) {
                 string key;
@@ -115,6 +118,7 @@ void clientTask(int clientNum, int max_requests,
                    }
                 });
             };
+            int max_requests = cfg.getValueOfKey<int>("repeat", 1);
             std::atomic<std::size_t> max_cnt(max_requests);
             auto count = make_shared<int>(max_cnt);
             char buf[16];
@@ -140,8 +144,9 @@ void clientTask(int clientNum, int max_requests,
                        return REQUEST_SIZE;
             };
 
-            char data[1024];
-            memset(data, 'c', 1024);
+            int num_bytes = cfg.getValueOfKey<int>("bytes", 16);
+            char data[num_bytes];
+            memset(data, 'c', num_bytes);
             auto req = sess.submit(ec, "POST", MASTER_NODE_URI, data, h);
             req->on_response(printer);
             req->on_close([&sess, count, startPtr, clientNum, &mutex_](uint32_t error_code) {
@@ -164,7 +169,9 @@ void clientTask(int clientNum, int max_requests,
 //                    sess.shutdown();
                 }
                 });
-             usleep(within(400 * 1000));//400 msec
+                int time_to_sleep = cfg.getValueOfKey<int>("sleep_time", 0);
+                usleep(cfg.getValueOfKey<string>("randomness") == "yes" ? 
+                        within(time_to_sleep) : time_to_sleep);
             }
     });
 
@@ -177,24 +184,25 @@ void clientTask(int clientNum, int max_requests,
 
 int main(int argc, char *argv[])
 {
-    int max_threads, max_requests;
     string master_addr, master_port;
 
-    if (argc != 5) {
+    if (argc != 2) {
         cout << "usage: " << endl;
-        cout << argv[0] << "  masterip port concurrent repeat" << endl;
+        cout << argv[0] << " cluster_client.cfg" << endl;
         return -1;
     }
     openlog(NULL, 0, LOG_USER);
     SYSLOG(LOG_INFO, "client started...");
-    master_addr = argv[1];
-    master_port = argv[2];
-    max_threads = atoi(argv[3]);    
-    max_requests = atoi(argv[4]);
+    ConfigFile cfg(argv[1]);
+    cout << "Client started the below config parameters: " << endl;
+    cfg.printAll();
+    cout << endl;
+
+    int max_threads = cfg.getValueOfKey<int>("concurrent", 1);
     std::map<string, struct timeval> reqMaps[max_threads];
     for (int num = 0; num < max_threads; ++num) {
-        auto th = std::thread([num, max_requests, master_addr, master_port, &reqMaps]() { 
-           clientTask(num, max_requests, master_addr, master_port, reqMaps[num]);
+        auto th = std::thread([num, &cfg, &reqMaps]() { 
+           clientTask(num, cfg, reqMaps[num]);
         });
         th.detach();
     }
@@ -204,10 +212,11 @@ int main(int argc, char *argv[])
     time.max_value = INT_MIN;
     time.failures = 0;
     time.total_time = 0;
+    time.total_requests = 0;
     for (int num = 0; num < max_threads; ++num) {
        printStats(reqMaps[num], time);
     }
-    cout << "Total requests " << max_requests * max_threads << endl;
+    cout << "Total requests " << time.total_requests << endl;
     cout << "min val: " << time.min_value << endl;
     cout << "max val: " << time.max_value << endl;
     cout << "total time: " << time.total_time << endl;

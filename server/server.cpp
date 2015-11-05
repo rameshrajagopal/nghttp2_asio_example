@@ -14,16 +14,16 @@ using namespace std;
 using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::server;
 
-extern void ReqRouterTask(Queue<shared_ptr<Stream>> & q, string configFile);
+extern void ReqRouterTask(Queue<shared_ptr<Stream>> & q, ConfigFile & cfg);
 
 int getRequestNum(shared_ptr<Stream> st) 
 {
     return st->get_request_num();
 }
 
-void sendResponse(shared_ptr<Stream> st)
+void sendResponse(shared_ptr<Stream> st, bool randomness, int bytes, bool compr)
 {
-    st->commit_result();
+    st->commit_result(randomness, bytes, compr);
 }
 
 #define MAX_NUM_WORKER_THREADS (1)
@@ -34,23 +34,23 @@ int main(int argc, char *argv[])
     std::atomic<int> reqNum {0};
     int numSlaves = 0;
 
-    if (argc != 4) {
+    if (argc != 2) {
         cout << "Usage: " << endl;
-        cout << argv[0] << " ip port slave_config_file" << endl;
+        cout << argv[0] << " master_config" << endl;
         return -1;
     }
 
+    ConfigFile cfg(argv[1]);
+    cout << "Master started with the below config: " << endl;
+    cfg.printAll();
     openlog(NULL, 0, LOG_USER);
-    string masterip = argv[1];
-    string port = argv[2];
-    string config = argv[3];
-    cout << "Server started ip " << masterip << " port " << port << endl;
-    SYSLOG(LOG_INFO, "Server started ip: %s port: %s\n", masterip.c_str(), port.c_str());
+    string masterip = cfg.getValueOfKey<string>("masterip", "127.0.0.1");
+    string port = cfg.getValueOfKey<string>("masterport", "8000");
     server.num_threads(2);
     Queue<shared_ptr<Stream>> q;
 
-    auto th = std::thread([&q, config]() {
-       ReqRouterTask(q, config);
+    auto th = std::thread([&q, &cfg]() {
+       ReqRouterTask(q, cfg);
     });
     th.detach();
     server.handle("/", [&q, &reqNum](const request & req, const response & res) {

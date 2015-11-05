@@ -22,26 +22,33 @@ int main(int argc, char *argv[]) {
     string slavePort;
     std::atomic<int> reqNum {0};
 
-    if (argc != 3) {
+    if (argc != 2) {
         cout << "Usage: " << endl;
-        cout << argv[0] << " ip port " << endl;
+        cout << argv[0] << " slave.cfg" << endl;
         return -1;
     }
     openlog(NULL, 0, LOG_USER);
-    slaveAddr = argv[1];
-    slavePort = argv[2];
+    ConfigFile cfg(argv[1]);
+    cfg.printAll();
+    slaveAddr = cfg.getValueOfKey<string>("slave_addr");
+    slavePort = cfg.getValueOfKey<string>("slave_port");
+    int num_threads = cfg.getValueOfKey<int>("num_threads");
     server.num_threads(2);
     Queue<shared_ptr<Stream>> q;
 
-    SYSLOG(LOG_INFO, "worker started with %d threads\n", MAX_NUM_WORKER_THREADS);
-    for (int num = 0; num < MAX_NUM_WORKER_THREADS; ++num) {
-        auto th = std::thread([&q]() {
+    SYSLOG(LOG_INFO, "worker started with %d threads\n", num_threads);
+    for (int num = 0; num < num_threads; ++num) {
+        auto th = std::thread([&q, &cfg]() {
             srandom((unsigned) time(NULL));
             for (;;) {
                 auto st = q.pop();
                 /* do actual work */
-                usleep(100 * 1000);
-                st->commit_result();
+                int time_to_sleep = cfg.getValueOfKey<int>("sleep_time");
+                bool isRandom = cfg.getValueOfKey<string>("randomness") == "yes" ? true : false;
+                usleep( isRandom ? within(time_to_sleep) : time_to_sleep);
+                int num_bytes = cfg.getValueOfKey<int>("reply_bytes");
+                bool compression = cfg.getValueOfKey<string>("compression") == "yes" ? true : false;
+                st->commit_result(num_bytes, compression, isRandom);
             }
         });
         th.detach();
