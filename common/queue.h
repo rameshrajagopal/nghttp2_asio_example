@@ -19,6 +19,7 @@ class Queue
     }
     auto item = queue_.front();
     queue_.pop();
+    mlock.unlock();
     return item;
   }
 

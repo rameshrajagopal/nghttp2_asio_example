@@ -139,7 +139,6 @@ private:
 void ResRouterTask(RequestMap & reqMap, Queue<int> & resQ)
 {
     while (true) {
-        //SlaveResponse sr = resQ.pop();
         int clientReqNum = resQ.pop();
         int cnt = reqMap.decrementCnt(clientReqNum);
         syslog(LOG_INFO, "ResRouterTask got response %d %d\n", clientReqNum, cnt);

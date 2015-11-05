@@ -3,6 +3,7 @@
 #include <nghttp2/asio_http2_client.h>
 #include <config.h>
 #include <syslog.h>
+#include <mutex>
 
 using boost::asio::ip::tcp;
 
@@ -84,14 +85,16 @@ void clientTask(int clientNum, int max_requests,
 {
     boost::system::error_code ec;
     boost::asio::io_service io_service;
+    std::mutex mutex_;
 
     SYSLOG(LOG_INFO, "client task: %d connecting with: %s:%s", clientNum, master_addr.c_str(), master_port.c_str());
     session sess(io_service, master_addr, master_port);
     map<string, int> clientMap;
-    sess.on_connect([&sess, clientNum, max_requests, &clientMap, &reqMap](tcp::resolver::iterator endpoint_it) {
+    sess.on_connect([&sess, clientNum, max_requests, &clientMap, &reqMap, &mutex_](tcp::resolver::iterator endpoint_it) {
             boost::system::error_code ec;
             auto printer = [&clientMap, &reqMap](const response &res) {
                 string key;
+                cout << "response " << endl;
                 auto search = res.header().find("clientreq");
                 if (search != res.header().end()) {
                     key = search->second.value;
@@ -112,15 +115,15 @@ void clientTask(int clientNum, int max_requests,
                    }
                 });
             };
-            std::size_t num = max_requests;
-            auto count = make_shared<int>(num);
+            std::atomic<std::size_t> max_cnt(max_requests);
+            auto count = make_shared<int>(max_cnt);
             char buf[16];
 
             struct timeval tstart, curtime;
             gettimeofday(&tstart, NULL);
             auto startPtr = make_shared<struct timeval>(tstart);
             srandom((unsigned) time(NULL));
-            for (size_t i = 0; i < num; ++i) {
+            for (size_t i = 0; i < max_requests; ++i) {
             header_map h;
             snprintf(buf, sizeof(buf), "%d:%ld", clientNum, i);
             struct header_value hv = {buf, true};
@@ -131,15 +134,21 @@ void clientTask(int clientNum, int max_requests,
             reqMap[buf] = curtime;
             auto data_generator = []
                    (uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
+                       cout << "data is getting copied" << endl;
                        memset(buf, 'a', REQUEST_SIZE);
                        *flags = NGHTTP2_DATA_FLAG_EOF;
                        return REQUEST_SIZE;
             };
 
-            auto req = sess.submit(ec, "POST", MASTER_NODE_URI, data_generator,  h);
+            auto req = sess.submit(ec, "POST", MASTER_NODE_URI, h);
             req->on_response(printer);
-            req->on_close([&sess, count, startPtr, clientNum](uint32_t error_code) {
-                if (--*count == 0) {
+            req->on_close([&sess, count, startPtr, clientNum, &mutex_](uint32_t error_code) {
+                cout << "req got closed " << error_code << endl;
+                std::unique_lock<std::mutex> mlock(mutex_);
+                int tmpCnt = --*count;
+                mlock.unlock();
+                if (tmpCnt == 0) {
+                    cout << "tempcnt has come down \n" << endl;
                     struct timeval tend, tdiff;
                     gettimeofday(&tend, NULL);
                     if (tend.tv_usec < startPtr->tv_usec) {
@@ -151,10 +160,10 @@ void clientTask(int clientNum, int max_requests,
                     }
                     int total_msec = (tdiff.tv_sec * 1000) + (tdiff.tv_usec/1000);
                     SYSLOG(LOG_INFO, "client: %d total msec: %d\n", clientNum, total_msec);
-                    sess.shutdown();
+//                    sess.shutdown();
                 }
                 });
-//             usleep(within(400 * 1000));//400 msec
+             usleep(within(400 * 1000));//400 msec
             }
     });
 
