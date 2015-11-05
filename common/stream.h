@@ -38,6 +38,13 @@ void writeDatasize(int size, header_map & h)
     h.insert(std::make_pair("size", hv));
 }
 
+void enableCompression(header_map & h)
+{
+
+   struct header_value hv = {"gzip", true};
+   h.insert(std::make_pair("content-encoding", hv));
+}
+
 class FileData {
 public:
     FileData(const char * filename) {
@@ -86,6 +93,7 @@ struct Stream : public std::enable_shared_from_this<Stream> {
             writeRequestNum(self->req_num, h);
             writeClientRequestNum(self->req, h);
             writeDatasize(within(16 * 1024), h);
+            enableCompression(h);
             self->res.write_head(200, h);
             self->res.end([](uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
                   memset(buf, 'c', len);
