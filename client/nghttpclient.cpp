@@ -140,10 +140,11 @@ void clientTask(int clientNum, int max_requests,
                        return REQUEST_SIZE;
             };
 
-            auto req = sess.submit(ec, "POST", MASTER_NODE_URI, h);
+            char data[1024];
+            memset(data, 'c', 1024);
+            auto req = sess.submit(ec, "POST", MASTER_NODE_URI, data, h);
             req->on_response(printer);
             req->on_close([&sess, count, startPtr, clientNum, &mutex_](uint32_t error_code) {
-                cout << "req got closed " << error_code << endl;
                 std::unique_lock<std::mutex> mlock(mutex_);
                 int tmpCnt = --*count;
                 mlock.unlock();

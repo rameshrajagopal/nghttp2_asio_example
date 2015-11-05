@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     string port = argv[2];
     string config = argv[3];
     cout << "Server started ip " << masterip << " port " << port << endl;
-    syslog(LOG_INFO, "Server started ip: %s port: %s\n", masterip.c_str(), port.c_str());
+    SYSLOG(LOG_INFO, "Server started ip: %s port: %s\n", masterip.c_str(), port.c_str());
     server.num_threads(2);
     Queue<shared_ptr<Stream>> q;
 
@@ -55,13 +55,14 @@ int main(int argc, char *argv[])
     th.detach();
     server.handle("/", [&q, &reqNum](const request & req, const response & res) {
         int cnt = reqNum++;
-        cout << "req " << cnt << endl;
+        SYSLOG(LOG_INFO, "received req num %d\n", cnt);
         auto & io_service = res.io_service();
         auto st = std::make_shared<Stream>(req, res, io_service, cnt);
         res.on_close([st](uint32_t error_code) {
             st->set_closed(true);
         });
         req.on_data([&q, st](const uint8_t * data, size_t len) {
+            cout << "received len " << len << endl;
             if (len == 0) {
                q.push(st);
             }

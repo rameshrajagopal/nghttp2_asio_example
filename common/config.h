@@ -10,6 +10,7 @@
 #define  MASTER_NODE_URI   PROTOCOL MASTER_PORT
 #define  WORKER_FILE       "/work"
 #define within(num) (int) ((float) num * random() / (RAND_MAX + 1.0))
+#define SYSLOG(fmt...)    syslog(fmt)
 
 #define MAX_NUM_SLAVES  (3)
 typedef struct {

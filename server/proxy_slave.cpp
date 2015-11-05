@@ -104,11 +104,11 @@ public:
             mlock.unlock();
             this->setTaskNum(sNum);
             sessions[sNum].on_connect([slave](tcp::resolver::iterator endpoint_it) {
-                    syslog(LOG_INFO, "connection established with %s\n", slave->getAddr().c_str());
+                    SYSLOG(LOG_INFO, "connection established with %s\n", slave->getAddr().c_str());
                     slave->setStatus(true);
                     });
             sessions[sNum].on_error([slave](const boost::system::error_code &ec) {
-                    syslog(LOG_INFO, "connection error %s ec: %d\n", slave->getAddr().c_str(), ec.value());
+                    SYSLOG(LOG_INFO, "connection error %s ec: %d\n", slave->getAddr().c_str(), ec.value());
                     slave->setStatus(false);
                     });
             ios.run();
@@ -141,9 +141,9 @@ void ResRouterTask(RequestMap & reqMap, Queue<int> & resQ)
     while (true) {
         int clientReqNum = resQ.pop();
         int cnt = reqMap.decrementCnt(clientReqNum);
-        syslog(LOG_INFO, "ResRouterTask got response %d %d\n", clientReqNum, cnt);
+        SYSLOG(LOG_INFO, "ResRouterTask got response %d %d\n", clientReqNum, cnt);
         if (cnt == 0) {
-            syslog(LOG_INFO, "sending response to client reqNum: %d\n", clientReqNum);
+            SYSLOG(LOG_INFO, "sending response to client reqNum: %d\n", clientReqNum);
             sendResponse(reqMap.getStream(clientReqNum));
         }
     }
@@ -159,7 +159,7 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
     struct header_value hv = {buf, true};
     h.insert(make_pair("reqnum", hv));
     /* actual call to slave */
-    syslog(LOG_INFO, "Sending request to slave: %s\n", slave->getAddr().c_str());
+    SYSLOG(LOG_INFO, "Sending request to slave: %s\n", slave->getAddr().c_str());
     boost::system::error_code ec;
     slave->slaveReqMap[clientReqNum] = clientReqNum;
     auto request_generator = [](uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
@@ -167,7 +167,9 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
         *flags = NGHTTP2_DATA_FLAG_EOF;
         return REQUEST_SIZE;
     }; 
-    auto req = sessions[sNum].submit(ec, "POST", slaveAddrArray[sNum].uri, h);
+    char data[1024];
+    memset(data, 'c', sizeof(data));
+    auto req = sessions[sNum].submit(ec, "POST", slaveAddrArray[sNum].uri, data, h);
     req->on_response([slave](const response & res) {
             auto search = res.header().find("reqnum");
             assert(search != res.header().end());
@@ -176,7 +178,7 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
             auto kv = res.header().find("size");
             assert(kv != res.header().end());
             int expectedSize = std::stoi(kv->second.value, nullptr, 10);
-            syslog(LOG_INFO, "Response expected size: %d %d\n", reqNum, expectedSize);
+            SYSLOG(LOG_INFO, "Response expected size: %d %d\n", reqNum, expectedSize);
             //SlaveResponse sRes(reqNum, expectedSize);
             //cout << "sRes size: " << sRes.len << endl;
             res.on_data([slave, reqNum](const uint8_t * data, size_t len) {
@@ -187,7 +189,7 @@ void reqDispatcher(shared_ptr<ProxySlave> slave, int clientReqNum,
             });
      });
      req->on_close([slave, clientReqNum](uint32_t status){
-          syslog(LOG_INFO, "req close event: %d\n", clientReqNum);
+          SYSLOG(LOG_INFO, "req close event: %d\n", clientReqNum);
           slave->slaveReqMap.erase(clientReqNum);
      });
 }
@@ -220,7 +222,7 @@ void ReqRouterTask(Queue<shared_ptr<Stream>> & q, string configFile)
     int numSlaves = parseConfigFile(configFile.c_str());
 
     cout << "started proxy slaves: " <<  numSlaves;
-    syslog(LOG_INFO, "started proxy slaves: %d\n", numSlaves);
+    SYSLOG(LOG_INFO, "started proxy slaves: %d\n", numSlaves);
     for (int num = 0; num < numSlaves; ++num) {
         auto slave = make_shared<ProxySlave> (
                              slaveAddrArray[num].addr, slaveAddrArray[num].port, num, resQ);

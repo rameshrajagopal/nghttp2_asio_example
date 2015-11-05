@@ -89,7 +89,6 @@ struct Stream : public std::enable_shared_from_this<Stream> {
             self->res.write_head(200, h);
             self->res.end([](uint8_t * buf, size_t len, uint32_t * flags) -> ssize_t {
                   memset(buf, 'c', len);
-                  cout << "sending response " << len << endl;
                   *flags = NGHTTP2_DATA_FLAG_EOF;
                   return len;
                 });
