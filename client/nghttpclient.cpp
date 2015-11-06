@@ -170,6 +170,7 @@ void clientTask(int clientNum, ConfigFile & cfg,
                 }
                 });
                 int time_to_sleep = cfg.getValueOfKey<int>("sleep_time", 0);
+                time_to_sleep = time_to_sleep * 1000; //convert to usec
                 usleep(cfg.getValueOfKey<string>("randomness") == "yes" ? 
                         within(time_to_sleep) : time_to_sleep);
             }

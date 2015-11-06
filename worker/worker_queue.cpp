@@ -44,6 +44,7 @@ int main(int argc, char *argv[]) {
                 auto st = q.pop();
                 /* do actual work */
                 int time_to_sleep = cfg.getValueOfKey<int>("sleep_time");
+                time_to_sleep = time_to_sleep * 1000; //convert to usec
                 bool isRandom = cfg.getValueOfKey<string>("randomness") == "yes" ? true : false;
                 usleep( isRandom ? within(time_to_sleep) : time_to_sleep);
                 int num_bytes = cfg.getValueOfKey<int>("reply_bytes");
