@@ -68,6 +68,13 @@ int main(int argc, char *argv[])
             }
         });
     });
+    server.handle("/hello", [](const request & req, const response & res) {
+       res.write_head(200);
+       res.end("Hello World page");
+       res.on_close([](uint32_t ec) {
+           cout << "request got closed" << endl;
+       });
+    });
 
     boost::system::error_code ec;
     if (server.listen_and_serve(ec, masterip, port, true)) {
