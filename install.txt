@@ -1,0 +1,51 @@
+  370  cd nghttp2_asio_example/
+  371  ls
+  372  cd server/
+  373  ls
+  374  ./buildserver 
+  375  vi buildserver 
+  376  ./buildserver 
+  377  pwd
+  378  cd ..
+  379  ls
+  380  cd ..
+  381  ls
+  382  mv nghttp2-1.4.0 nghttp2
+  383  ls
+  384  cd nghttp2_asio_example/
+  385  ls
+  386  cd server/
+  387  ls
+  388  ./buildserver 
+  389  cd ../../
+  390  ls
+  391  cd nghttp2
+  392  ls
+  393  find . -name asio_http2_server.h
+  394  find . -name asio_http2_client.
+  395  find . -name asio_http2_client.h
+  396  cd ..
+  397  ls
+  398  cd nghttp2_asio_example/
+  399  ls
+  400  cd server/
+  401  ls
+  402  vi buildserver 
+  403  ./buildserver 
+  404  sudo yum install boost boost-devel boost-doc
+  405  ls
+  406  ./buildserver 
+  407  vi server.cpp 
+  408  ./buildserver 
+  409  cd /usr//local/lib
+  410  ls
+  411  cd //
+  412  ;s
+  413  cd 
+  414  ;s
+  415  ls
+  416  cd nghttp2
+  417  ls
+  418  ./configure --enable-asio-lib
+  419  sudo apt-get install libxml-dev
+  420  history > ~/install.txt

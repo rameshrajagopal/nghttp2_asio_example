@@ -91,7 +91,7 @@ struct Stream : public std::enable_shared_from_this<Stream> {
                return;
             }
             writeRequestNum(self->req_num, h);
-            writeClientRequestNum(self->req, h);
+            //writeClientRequestNum(self->req, h);
             writeDatasize((randomness) ? within(num_bytes) : num_bytes, h);
             if (compression) enableCompression(h);
             self->res.write_head(200, h);
