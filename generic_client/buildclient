@@ -1,0 +1,1 @@
+ g++ -g -std=c++14 -o client nghttp2_client.cpp -lnghttp2_asio -lboost_system -lssl -lcrypto -lpthread -lglog
